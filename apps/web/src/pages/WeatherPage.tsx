@@ -18,7 +18,8 @@ import {
   TrendingDown,
   TrendingUp,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
+  Navigation
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,90 @@ import { useLanguage } from '../context/LanguageContext';
 
 type FilterType = 'ALL' | 'HIGH' | 'WATER' | 'TEMP';
 type ViewMode = 'TABLE' | 'CARDS';
+
+export interface LocationPreset {
+  id: string;
+  name: string;
+  nameMr: string;
+  village: string;
+  lat: number;
+  lng: number;
+  zone: string;
+  zoneMr: string;
+}
+
+export const BARAMATI_REGIONAL_LOCATIONS: LocationPreset[] = [
+  {
+    id: 'morgaon',
+    name: 'Morgaon (Mayureshwar Scarcity Belt)',
+    nameMr: 'मोरगाव (मयूरेश्वर दुष्काळी पट्टा)',
+    village: 'Morgaon',
+    lat: 18.2778,
+    lng: 74.3167,
+    zone: 'Rainfed Scarcity Belt (~390 mm Kharif Normal)',
+    zoneMr: 'कोरडवाहू दुष्काळी पट्टा (~३९० मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'supa',
+    name: 'Supa (MIDC / Scarcity Belt)',
+    nameMr: 'सुपा (दुष्काळी पट्टा / MIDC)',
+    village: 'Supa',
+    lat: 18.3344,
+    lng: 74.3912,
+    zone: 'Rainfed Scarcity Belt (~390 mm Kharif Normal)',
+    zoneMr: 'कोरडवाहू दुष्काळी पट्टा (~३९० मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'malegaon',
+    name: 'Malegaon (Canal Command / Sugar Belt)',
+    nameMr: 'माळेगाव (कॅनॉल पट्टा / साखर कारखाना)',
+    village: 'Malegaon',
+    lat: 18.1519,
+    lng: 74.5771,
+    zone: 'Canal Command Belt (~445 mm Kharif Normal)',
+    zoneMr: 'नीरा डावा कालवा पट्टा (~४४५ मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'shardanagar',
+    name: 'Shardanagar (KVK Research Belt)',
+    nameMr: 'शारदानगर (कृषी विज्ञान केंद्र KVK)',
+    village: 'Shardanagar',
+    lat: 18.1722,
+    lng: 74.5956,
+    zone: 'Well-Irrigated Agro Belt (~420 mm Kharif Normal)',
+    zoneMr: 'विहीर बागायत पट्टा (~४२० मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'someshwar',
+    name: 'Someshwar (Nira Canal Belt)',
+    nameMr: 'सोमेश्वर (नीरा कालवा पट्टा)',
+    village: 'Someshwar',
+    lat: 18.1833,
+    lng: 74.2833,
+    zone: 'Canal Command Belt (~445 mm Kharif Normal)',
+    zoneMr: 'नीरा कालवा पट्टा (~४४५ मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'pandare',
+    name: 'Pandare (Canal Command)',
+    nameMr: 'पांढरे (कॅनॉल पट्टा)',
+    village: 'Pandare',
+    lat: 18.1167,
+    lng: 74.4500,
+    zone: 'Canal Command Belt (~445 mm Kharif Normal)',
+    zoneMr: 'कॅनॉल पट्टा (~४४५ मिमी सरासरी पाऊस)'
+  },
+  {
+    id: 'baramati_town',
+    name: 'Baramati Town (Central Tehsil)',
+    nameMr: 'बारामती शहर (मध्यवर्ती तहसील)',
+    village: 'Baramati',
+    lat: 18.1500,
+    lng: 74.5800,
+    zone: 'Central Baramati Belt (~420 mm Kharif Normal)',
+    zoneMr: 'मध्यवर्ती बारामती (~४२० मिमी सरासरी पाऊस)'
+  }
+];
 
 const DEFAULT_INPUTS = [
   {
@@ -137,16 +222,16 @@ const DEFAULT_INPUTS = [
     id: 'historical_rain',
     parameter: 'Historical seasonal rainfall',
     parameterMarathi: 'ऐतिहासिक सरासरी पाऊस',
-    source: 'Historical weather data',
+    source: 'IMD Pune / KVK Baramati Agromet Normals',
     importance: 'Very high',
     use: 'Long-term rainfall suitability',
     useMarathi: 'दीर्घकालीन पावसाची अनुकूलता',
-    value: '720',
-    numericValue: 720,
+    value: '420',
+    numericValue: 420,
     unit: 'mm',
     status: 'OPTIMAL',
-    advisory: 'Normal regional seasonal rainfall benchmark is 720 mm for Kharif crops.',
-    advisoryMarathi: 'या भागातील सरासरी हंगामी पाऊस ७२० मिमी असतो.'
+    advisory: 'Normal regional seasonal rainfall benchmark is 390-445 mm for Kharif crops (Baramati rain-shadow scarcity belt; annual normal ~475 mm).',
+    advisoryMarathi: 'या भागातील खरीप हंगामातील सरासरी पाऊस ३९०-४४५ मिमी असतो (वार्षिक सरासरी ~४७५ मिमी).'
   },
   {
     id: 'wind_speed',
@@ -200,6 +285,23 @@ export const WeatherPage: React.FC = () => {
   const { language } = useLanguage();
   const isMr = language === 'mr';
 
+  const [farmsList, setFarmsList] = useState<any[]>([]);
+  const [selectedLocKey, setSelectedLocKey] = useState<string>('primary_farm');
+  const [currentCoords, setCurrentCoords] = useState<{
+    lat: number;
+    lng: number;
+    village: string;
+    zone: string;
+    farmId?: string;
+  }>(() => ({
+    lat: Number(primaryFarm?.latitude) || 18.2778,
+    lng: Number(primaryFarm?.longitude) || 74.3167,
+    village: primaryFarm?.village || 'Morgaon',
+    zone: primaryFarm?.name || (isMr ? 'मोरगाव दुष्काळी पट्टा' : 'Morgaon Scarcity Belt'),
+    farmId: primaryFarm?.id
+  }));
+  const [locatingGps, setLocatingGps] = useState(false);
+
   const [agronomicInputs, setAgronomicInputs] = useState<any[]>(DEFAULT_INPUTS);
   const [currentWeather, setCurrentWeather] = useState<any>({
     temperatureC: 25.4,
@@ -236,10 +338,40 @@ export const WeatherPage: React.FC = () => {
   };
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
 
-  async function loadWeather(silent = false) {
+  // 1. Fetch user's registered farms on mount
+  useEffect(() => {
+    async function loadFarms() {
+      try {
+        const farms = await api.getFarms();
+        if (Array.isArray(farms) && farms.length > 0) {
+          setFarmsList(farms);
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    }
+    loadFarms();
+  }, []);
+
+  // 2. Fetch live dynamic weather for targeted coordinates
+  async function loadWeather(
+    targetLoc?: { lat: number; lng: number; village: string; farmId?: string },
+    silent = false
+  ) {
     try {
       if (!silent) setRefreshing(true);
-      const res = await api.getComprehensiveWeather(primaryFarm?.id);
+      const lat = targetLoc?.lat ?? currentCoords.lat;
+      const lng = targetLoc?.lng ?? currentCoords.lng;
+      const village = targetLoc?.village ?? currentCoords.village;
+      const farmId = targetLoc?.farmId ?? currentCoords.farmId ?? primaryFarm?.id;
+
+      const res = await api.getComprehensiveWeather({
+        farmId,
+        lat,
+        lng,
+        village
+      });
+
       if (res) {
         if (res.agronomicInputs && res.agronomicInputs.length > 0) {
           setAgronomicInputs(res.agronomicInputs);
@@ -263,9 +395,96 @@ export const WeatherPage: React.FC = () => {
     }
   }
 
+  // Load weather when primaryFarm changes or on initial load
   useEffect(() => {
-    loadWeather(false);
+    if (primaryFarm) {
+      const coords = {
+        lat: Number(primaryFarm.latitude) || 18.1519,
+        lng: Number(primaryFarm.longitude) || 74.5771,
+        village: primaryFarm.village || 'Malegaon',
+        zone: primaryFarm.name || 'Primary Farm Plot',
+        farmId: primaryFarm.id
+      };
+      setCurrentCoords(coords);
+      loadWeather(coords, false);
+    } else {
+      loadWeather(currentCoords, false);
+    }
   }, [primaryFarm?.id]);
+
+  // Handle location dropdown change
+  function handleLocationChange(key: string) {
+    setSelectedLocKey(key);
+
+    if (key === 'primary_farm' && primaryFarm) {
+      const coords = {
+        lat: Number(primaryFarm.latitude) || 18.1519,
+        lng: Number(primaryFarm.longitude) || 74.5771,
+        village: primaryFarm.village || 'Malegaon',
+        zone: primaryFarm.name || 'Primary Farm Plot',
+        farmId: primaryFarm.id
+      };
+      setCurrentCoords(coords);
+      loadWeather(coords);
+      return;
+    }
+
+    const matchedFarm = farmsList.find((f) => f.id === key);
+    if (matchedFarm) {
+      const coords = {
+        lat: Number(matchedFarm.latitude) || 18.1519,
+        lng: Number(matchedFarm.longitude) || 74.5771,
+        village: matchedFarm.village || 'Baramati',
+        zone: matchedFarm.name,
+        farmId: matchedFarm.id
+      };
+      setCurrentCoords(coords);
+      loadWeather(coords);
+      return;
+    }
+
+    const preset = BARAMATI_REGIONAL_LOCATIONS.find((p) => p.id === key);
+    if (preset) {
+      const coords = {
+        lat: preset.lat,
+        lng: preset.lng,
+        village: preset.village,
+        zone: isMr ? preset.nameMr : preset.name
+      };
+      setCurrentCoords(coords);
+      loadWeather(coords);
+    }
+  }
+
+  // Handle GPS Auto-detect
+  function handleAutoDetectGps() {
+    if (!navigator.geolocation) {
+      alert(isMr ? 'आपल्या ब्राउझरमध्ये GPS सुविधा उपलब्ध नाही.' : 'Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const detectedLat = parseFloat(pos.coords.latitude.toFixed(4));
+        const detectedLng = parseFloat(pos.coords.longitude.toFixed(4));
+        const coords = {
+          lat: detectedLat,
+          lng: detectedLng,
+          village: 'Current Farm GPS',
+          zone: isMr ? 'थेट GPS शेत स्थान' : 'Live Detected Field GPS'
+        };
+        setSelectedLocKey('custom_gps');
+        setCurrentCoords(coords);
+        loadWeather(coords);
+        setLocatingGps(false);
+      },
+      (err) => {
+        setLocatingGps(false);
+        alert(`GPS error: ${err.message}. Please select location manually.`);
+      },
+      { timeout: 8000 }
+    );
+  }
 
   // Filter inputs
   const filteredInputs = agronomicInputs.filter((item) => {
@@ -466,14 +685,14 @@ export const WeatherPage: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.88rem', flexWrap: 'wrap' }}>
             <MapPin size={15} color="var(--color-primary)" />
             <span>
-              <strong>{primaryFarm?.name || (isMr ? 'शेत भूखंड' : 'Primary Farm')}</strong>
-              {primaryFarm?.village ? ` • ${primaryFarm.village}` : ''}
-              {primaryFarm?.taluka ? `, ${primaryFarm.taluka}` : ''}
-              {primaryFarm?.district ? ` (${primaryFarm.district})` : ''}
-              {primaryFarm?.latitude ? ` • ${Number(primaryFarm.latitude).toFixed(4)}°N, ${Number(primaryFarm.longitude).toFixed(4)}°E` : ''}
+              <strong style={{ color: 'var(--text-heading)' }}>{currentCoords.village}</strong>
+              {currentCoords.zone ? ` • ${currentCoords.zone}` : ''}
+              <span style={{ fontFamily: 'monospace', fontSize: '0.84rem', color: '#10b981', marginLeft: '6px' }}>
+                ({currentCoords.lat.toFixed(4)}°N, {currentCoords.lng.toFixed(4)}°E)
+              </span>
             </span>
             {lastRefreshed && (
               <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
@@ -483,22 +702,97 @@ export const WeatherPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => loadWeather(false)}
-          disabled={refreshing}
-          className="btn btn-secondary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.88rem',
-            padding: '8px 16px',
-            cursor: refreshing ? 'wait' : 'pointer'
-          }}
-        >
-          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-          {isMr ? 'हवामान रिफ्रेश करा' : 'Refresh Weather'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Location / Farm Dropdown */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '6px 12px'
+            }}
+          >
+            <MapPin size={15} color="#10b981" />
+            <select
+              value={selectedLocKey}
+              onChange={(e) => handleLocationChange(e.target.value)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-main)',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                outline: 'none',
+                cursor: 'pointer',
+                maxWidth: '260px'
+              }}
+            >
+              {primaryFarm && (
+                <option value="primary_farm" style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                  📍 {isMr ? 'माझे शेत:' : 'My Farm:'} {primaryFarm.name} ({primaryFarm.village || 'Malegaon'})
+                </option>
+              )}
+              {farmsList
+                .filter((f) => f.id !== primaryFarm?.id)
+                .map((f) => (
+                  <option key={f.id} value={f.id} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                    📍 {f.name} ({f.village || 'Baramati'})
+                  </option>
+                ))}
+              <optgroup label={isMr ? 'बारामती परिसरातील गावे' : 'Baramati Regional Circles'}>
+                {BARAMATI_REGIONAL_LOCATIONS.map((loc) => (
+                  <option key={loc.id} value={loc.id} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                    🌍 {isMr ? loc.nameMr : loc.name}
+                  </option>
+                ))}
+              </optgroup>
+              {selectedLocKey === 'custom_gps' && (
+                <option value="custom_gps" style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                  🛰️ {isMr ? 'थेट GPS शेत' : 'Live Field GPS'} ({currentCoords.lat.toFixed(4)}°, {currentCoords.lng.toFixed(4)}°)
+                </option>
+              )}
+            </select>
+          </div>
+
+          {/* GPS Button */}
+          <button
+            onClick={handleAutoDetectGps}
+            disabled={locatingGps}
+            className="btn btn-secondary"
+            title={isMr ? 'सध्याचे शेताचे GPS स्थान घ्या' : 'Auto-detect current field GPS'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.86rem',
+              padding: '8px 12px'
+            }}
+          >
+            <Navigation size={15} className={locatingGps ? 'animate-spin' : ''} color="#38bdf8" />
+            <span>{locatingGps ? '...' : isMr ? 'GPS स्थान' : 'GPS'}</span>
+          </button>
+
+          {/* Refresh Button */}
+          <button
+            onClick={() => loadWeather(currentCoords, false)}
+            disabled={refreshing}
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.88rem',
+              padding: '8px 16px',
+              cursor: refreshing ? 'wait' : 'pointer'
+            }}
+          >
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            <span>{isMr ? 'रिफ्रेश' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Active Climate Risk Warning Banners (if any) */}

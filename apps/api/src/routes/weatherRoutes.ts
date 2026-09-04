@@ -31,11 +31,27 @@ async function resolveFarmLocation(farmId?: string): Promise<{ lat: number; lng:
 // 1. Comprehensive Master Weather Data (All 11 Inputs + Forecast + Alerts)
 weatherRouter.get('/comprehensive', async (req: Request, res: Response) => {
   const farmId = req.query.farmId as string;
-  const { lat, lng, farm } = await resolveFarmLocation(farmId);
+  const qLat = req.query.lat ? parseFloat(req.query.lat as string) : NaN;
+  const qLng = req.query.lng ? parseFloat(req.query.lng as string) : NaN;
+  const qVillage = req.query.village as string | undefined;
 
-  const data = await WeatherService.getComprehensiveWeather(lat, lng, farm?.id);
+  let { lat, lng, farm } = await resolveFarmLocation(farmId);
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    lat = qLat;
+    lng = qLng;
+  }
+  const resolvedVillage = qVillage || farm?.village || 'Baramati';
+
+  const data = await WeatherService.getComprehensiveWeather(lat, lng, farm?.id, resolvedVillage);
   return res.json({
     ...data,
+    resolvedLocation: {
+      village: resolvedVillage,
+      latitude: lat,
+      longitude: lng,
+      taluka: farm?.taluka || 'Baramati',
+      district: farm?.district || 'Pune'
+    },
     farm: farm
       ? {
           id: farm.id,
@@ -44,8 +60,8 @@ weatherRouter.get('/comprehensive', async (req: Request, res: Response) => {
           taluka: farm.taluka,
           district: farm.district,
           state: farm.state,
-          latitude: lat,
-          longitude: lng
+          latitude: Number(farm.latitude) || lat,
+          longitude: Number(farm.longitude) || lng
         }
       : null
   });
@@ -54,36 +70,77 @@ weatherRouter.get('/comprehensive', async (req: Request, res: Response) => {
 // 2. Specific Agronomic Inputs Matrix
 weatherRouter.get('/agronomic-inputs', async (req: Request, res: Response) => {
   const farmId = req.query.farmId as string;
-  const { lat, lng } = await resolveFarmLocation(farmId);
-  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId);
+  const qLat = req.query.lat ? parseFloat(req.query.lat as string) : NaN;
+  const qLng = req.query.lng ? parseFloat(req.query.lng as string) : NaN;
+  const qVillage = req.query.village as string | undefined;
+
+  let { lat, lng, farm } = await resolveFarmLocation(farmId);
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    lat = qLat;
+    lng = qLng;
+  }
+  const resolvedVillage = qVillage || farm?.village || 'Baramati';
+
+  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId, resolvedVillage);
   return res.json(data.agronomicInputs);
 });
 
 // 3. Current Weather
 weatherRouter.get('/current', async (req: Request, res: Response) => {
   const farmId = req.query.farmId as string;
-  const { lat, lng, farm } = await resolveFarmLocation(farmId);
-  const data = await WeatherService.getComprehensiveWeather(lat, lng, farm?.id);
+  const qLat = req.query.lat ? parseFloat(req.query.lat as string) : NaN;
+  const qLng = req.query.lng ? parseFloat(req.query.lng as string) : NaN;
+  const qVillage = req.query.village as string | undefined;
+
+  let { lat, lng, farm } = await resolveFarmLocation(farmId);
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    lat = qLat;
+    lng = qLng;
+  }
+  const resolvedVillage = qVillage || farm?.village || 'Baramati';
+
+  const data = await WeatherService.getComprehensiveWeather(lat, lng, farm?.id, resolvedVillage);
   return res.json({
     ...data.current,
     agronomicInputs: data.agronomicInputs,
-    farmName: farm?.name || 'Primary Farm'
+    farmName: farm?.name || 'Primary Farm',
+    village: resolvedVillage
   });
 });
 
 // 4. Forecast
 weatherRouter.get('/forecast', async (req: Request, res: Response) => {
   const farmId = req.query.farmId as string;
-  const { lat, lng } = await resolveFarmLocation(farmId);
-  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId);
+  const qLat = req.query.lat ? parseFloat(req.query.lat as string) : NaN;
+  const qLng = req.query.lng ? parseFloat(req.query.lng as string) : NaN;
+  const qVillage = req.query.village as string | undefined;
+
+  let { lat, lng, farm } = await resolveFarmLocation(farmId);
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    lat = qLat;
+    lng = qLng;
+  }
+  const resolvedVillage = qVillage || farm?.village || 'Baramati';
+
+  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId, resolvedVillage);
   return res.json(data.forecast);
 });
 
 // 5. Risk Alerts
 weatherRouter.get('/alerts', async (req: Request, res: Response) => {
   const farmId = req.query.farmId as string;
-  const { lat, lng } = await resolveFarmLocation(farmId);
-  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId);
+  const qLat = req.query.lat ? parseFloat(req.query.lat as string) : NaN;
+  const qLng = req.query.lng ? parseFloat(req.query.lng as string) : NaN;
+  const qVillage = req.query.village as string | undefined;
+
+  let { lat, lng, farm } = await resolveFarmLocation(farmId);
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    lat = qLat;
+    lng = qLng;
+  }
+  const resolvedVillage = qVillage || farm?.village || 'Baramati';
+
+  const data = await WeatherService.getComprehensiveWeather(lat, lng, farmId, resolvedVillage);
 
   let activeCycle: any = null;
   if (farmId && farmId !== 'undefined') {

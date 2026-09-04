@@ -79,8 +79,21 @@ export const api = {
     apiRequest<any>(`/weather/forecast${farmId ? `?farmId=${farmId}` : ''}`),
   getWeatherAlerts: (farmId?: string) =>
     apiRequest<any>(`/weather/alerts${farmId ? `?farmId=${farmId}` : ''}`),
-  getComprehensiveWeather: (farmId?: string) =>
-    apiRequest<any>(`/weather/comprehensive${farmId ? `?farmId=${farmId}` : ''}`),
+  getComprehensiveWeather: (params?: string | { farmId?: string; lat?: number; lng?: number; village?: string }) => {
+    if (typeof params === 'string') {
+      return apiRequest<any>(`/weather/comprehensive${params ? `?farmId=${params}` : ''}`);
+    }
+    if (params && typeof params === 'object') {
+      const q = new URLSearchParams();
+      if (params.farmId) q.set('farmId', params.farmId);
+      if (params.lat !== undefined) q.set('lat', String(params.lat));
+      if (params.lng !== undefined) q.set('lng', String(params.lng));
+      if (params.village) q.set('village', params.village);
+      const qs = q.toString();
+      return apiRequest<any>(`/weather/comprehensive${qs ? `?${qs}` : ''}`);
+    }
+    return apiRequest<any>('/weather/comprehensive');
+  },
   getAgronomicInputs: (farmId?: string) =>
     apiRequest<any[]>(`/weather/agronomic-inputs${farmId ? `?farmId=${farmId}` : ''}`),
 
