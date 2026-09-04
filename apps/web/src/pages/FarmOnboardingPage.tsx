@@ -5,17 +5,21 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 const WATER_SOURCE_OPTIONS = [
-  { id: 'DRIP', label: 'Drip Irrigation (Micro-drip)' },
+  { id: 'CANAL', label: 'Canal (Nira Left Bank Canal Flow)' },
   { id: 'BOREWELL', label: 'Borewell / Tube Well' },
-  { id: 'CANAL', label: 'Canal Flow Water' },
-  { id: 'SPRINKLER', label: 'Sprinkler System' },
   { id: 'OPEN_WELL', label: 'Open Well / Dug Well' },
-  { id: 'RIVER_LIFT', label: 'River / Lift Irrigation' },
+  { id: 'RIVER_LIFT', label: 'River / Lift Irrigation System' },
   { id: 'FARM_POND', label: 'Farm Pond / Rainwater Harvesting' },
-  { id: 'RAINFED', label: 'Rainfed (Direct Monsoon)' }
+  { id: 'RAINFED', label: 'Rainfed (Direct Monsoon / Scarcity)' },
+  { id: 'DRIP', label: 'Drip Irrigation (Micro-irrigation)' },
+  { id: 'SPRINKLER', label: 'Sprinkler System' },
+  { id: 'FLOOD', label: 'Flood / Furrow Irrigation' }
 ];
 
 const SOIL_TYPE_OPTIONS = [
+  { id: 'DEEP_BLACK_VERTISOL', label: 'Deep Black Vertisol (Heavy Black / Canal Belt)' },
+  { id: 'MEDIUM_CLAY_LOAM', label: 'Medium Clay Loam (Well-Drained Loam / Shardanagar Belt)' },
+  { id: 'SHALLOW_MURRUM', label: 'Shallow Basaltic Murrum (Light / Supa Scarcity Belt)' },
   { id: 'BLACK_COTTON', label: 'Black Cotton Soil (Regur / Heavy Clay)' },
   { id: 'ALLUVIAL', label: 'Alluvial Loam (Fertile River Plains)' },
   { id: 'RED_SOIL', label: 'Red Sandy / Lateritic Soil' },
@@ -48,18 +52,18 @@ export const FarmOnboardingPage: React.FC = () => {
   const [farmData, setFarmData] = useState({
     name: 'Shivaji Agri Fields',
     areaAcres: '4.0',
-    village: 'Baramati',
+    village: 'Malegaon',
     taluka: 'Baramati',
     district: 'Pune',
     state: 'Maharashtra',
-    latitude: '18.4875',
-    longitude: '74.1332',
-    waterSources: ['DRIP', 'BOREWELL'],
-    notes: 'Primary crop plot with micro-irrigation.'
+    latitude: '18.1519',
+    longitude: '74.5771',
+    waterSources: ['CANAL', 'DRIP'],
+    notes: 'Primary crop plot with Nira Left Bank Canal & micro-irrigation.'
   });
 
   const [soilData, setSoilData] = useState({
-    soilType: 'BLACK_COTTON',
+    soilType: 'DEEP_BLACK_VERTISOL',
     ph: '7.2',
     nitrogen: '220',
     phosphorus: '30',

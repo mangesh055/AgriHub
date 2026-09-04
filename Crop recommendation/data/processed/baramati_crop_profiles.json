@@ -1,0 +1,551 @@
+{
+  "sugarcane": {
+    "name": "Sugarcane",
+    "marathi_name": "ऊस",
+    "scientific_name": "Saccharum officinarum",
+    "kvk_varieties": [
+      "Co 86032 (Nira)",
+      "VSI 08005",
+      "MS 10001"
+    ],
+    "seasons": [
+      "annual",
+      "whole_year",
+      "kharif",
+      "rabi",
+      "summer"
+    ],
+    "primary_microzones": [
+      "canal_command",
+      "well_irrigated"
+    ],
+    "water_requirement": "very_high",
+    "water_requirement_mm": [
+      1800,
+      2500
+    ],
+    "duration_days": [
+      300,
+      365
+    ],
+    "drought_tolerance": "low",
+    "ideal_soils": [
+      "deep_black_vertisol",
+      "medium_clay_loam"
+    ],
+    "management_commitment": "high",
+    "market_risk": "low",
+    "economic_return": "very_high",
+    "temp_range_c": [
+      20,
+      38
+    ],
+    "optimum_temp_c": [
+      26,
+      35
+    ],
+    "optimum_rainfall_mm": [
+      1400,
+      2400
+    ],
+    "optimal_npk": {
+      "N": 250,
+      "P": 85,
+      "K": 125,
+      "ph": 7.6,
+      "organic_carbon": 0.55
+    },
+    "critical_water_stages": [
+      "Tillering stage",
+      "Grand growth stem elongation"
+    ],
+    "reasons": [
+      "Premier commercial crop of Baramati canal command (Malegaon and Someshwar sugar cooperative belts)",
+      "Guaranteed mill procurement and high biomass tonnage (100-135 T/Ha) under Nira Left Bank Canal irrigation",
+      "Highest net return per acre when supported by perennial river, canal, or automated drip systems"
+    ],
+    "tradeoffs": [
+      "Requires 1800-2500 mm perennial water; strictly unviable in rainfed Supa/scarcity zones",
+      "Continuous flood irrigation causes soil salinity/sodicity (ICAR-NIASM abiotic stress alert)",
+      "Lock-in period of 12-14 months prevents seasonal crop rotation"
+    ]
+  },
+  "soybean": {
+    "name": "Soybean",
+    "marathi_name": "सोयाबीन",
+    "scientific_name": "Glycine max",
+    "kvk_varieties": [
+      "Phule Sangam (KDS 726)",
+      "JS 335",
+      "Phule Kimaya"
+    ],
+    "seasons": [
+      "kharif"
+    ],
+    "primary_microzones": [
+      "well_irrigated",
+      "canal_command"
+    ],
+    "water_requirement": "medium",
+    "water_requirement_mm": [
+      450,
+      650
+    ],
+    "duration_days": [
+      95,
+      105
+    ],
+    "drought_tolerance": "medium",
+    "ideal_soils": [
+      "deep_black_vertisol",
+      "medium_clay_loam"
+    ],
+    "management_commitment": "medium",
+    "market_risk": "medium",
+    "economic_return": "high",
+    "temp_range_c": [
+      22,
+      34
+    ],
+    "optimum_temp_c": [
+      25,
+      30
+    ],
+    "optimum_rainfall_mm": [
+      450,
+      650
+    ],
+    "optimal_npk": {
+      "N": 30,
+      "P": 60,
+      "K": 40,
+      "ph": 7.4,
+      "organic_carbon": 0.5
+    },
+    "critical_water_stages": [
+      "Flowering (R1-R2)",
+      "Pod filling (R3-R4)"
+    ],
+    "reasons": [
+      "Top Kharif pulse-oilseed recommended by KVK Baramati for black vertisols",
+      "Phule Sangam variety yields 2.2-2.8 T/Ha with high oil and protein content",
+      "Natural nitrogen-fixer (adds 30-40 kg N/ha), making it the ideal predecessor for Rabi Wheat or Gram",
+      "Short duration (95-105 days) fits perfectly into the Baramati double-cropping calendar"
+    ],
+    "tradeoffs": [
+      "Sensitive to moisture stress during pod development (ICAR-NIASM mid-season drought warning)",
+      "Susceptible to stem fly and rust in unseasonal humid cloudy weather",
+      "Requires good drainage; cannot tolerate standing flood water"
+    ]
+  },
+  "sorghum": {
+    "name": "Rabi Jowar (Maldandi)",
+    "marathi_name": "रब्बी ज्वारी (मालदांडी)",
+    "scientific_name": "Sorghum bicolor",
+    "kvk_varieties": [
+      "Maldandi M 35-1",
+      "Phule Revati",
+      "Phule Vasudha"
+    ],
+    "seasons": [
+      "rabi",
+      "kharif"
+    ],
+    "primary_microzones": [
+      "rainfed_scarcity",
+      "well_irrigated"
+    ],
+    "water_requirement": "low",
+    "water_requirement_mm": [
+      300,
+      450
+    ],
+    "duration_days": [
+      110,
+      125
+    ],
+    "drought_tolerance": "very_high",
+    "ideal_soils": [
+      "shallow_murrum",
+      "medium_clay_loam",
+      "deep_black_vertisol"
+    ],
+    "management_commitment": "low",
+    "market_risk": "low",
+    "economic_return": "medium",
+    "temp_range_c": [
+      15,
+      32
+    ],
+    "optimum_temp_c": [
+      20,
+      28
+    ],
+    "optimum_rainfall_mm": [
+      300,
+      450
+    ],
+    "optimal_npk": {
+      "N": 60,
+      "P": 30,
+      "K": 30,
+      "ph": 7.8,
+      "organic_carbon": 0.4
+    },
+    "critical_water_stages": [
+      "Flag leaf / Boot stage",
+      "Grain dough stage"
+    ],
+    "reasons": [
+      "Signature drought-tolerant staple crop for Baramati rainfed pockets (Supa, Morgaon, Tardoli)",
+      "Maldandi M 35-1 commands premium grain price in Baramati APMC mandi",
+      "High quality Kadbi (stover) provides crucial dry fodder for Baramati's extensive dairy livestock",
+      "Grows successfully on residual Kharif soil moisture with just 1 protective irrigation"
+    ],
+    "tradeoffs": [
+      "Lower gross cash returns compared to commercial sugarcane or onion",
+      "Shoot fly damage during early seedling emergence requires timely sowing",
+      "Moisture stress in shallow murrum soils can cause lodging if winter winds are strong"
+    ]
+  },
+  "onion": {
+    "name": "Onion",
+    "marathi_name": "कांदा",
+    "scientific_name": "Allium cepa",
+    "kvk_varieties": [
+      "Bhima Super",
+      "Bhima Red",
+      "Bhima Kiran"
+    ],
+    "seasons": [
+      "rabi",
+      "kharif",
+      "summer"
+    ],
+    "primary_microzones": [
+      "canal_command",
+      "well_irrigated"
+    ],
+    "water_requirement": "medium",
+    "water_requirement_mm": [
+      400,
+      600
+    ],
+    "duration_days": [
+      110,
+      130
+    ],
+    "drought_tolerance": "low",
+    "ideal_soils": [
+      "medium_clay_loam",
+      "deep_black_vertisol"
+    ],
+    "management_commitment": "high",
+    "market_risk": "high",
+    "economic_return": "very_high",
+    "temp_range_c": [
+      15,
+      32
+    ],
+    "optimum_temp_c": [
+      18,
+      28
+    ],
+    "optimum_rainfall_mm": [
+      350,
+      550
+    ],
+    "optimal_npk": {
+      "N": 100,
+      "P": 50,
+      "K": 75,
+      "ph": 7.4,
+      "organic_carbon": 0.55
+    },
+    "critical_water_stages": [
+      "Bulb initiation",
+      "Bulb enlargement"
+    ],
+    "reasons": [
+      "Major commercial cash crop in Baramati and Pandare belt with instant liquidity at Baramati sub-market yard",
+      "Bhima Super developed by DOGR/KVK yields 20-25 T/Ha with superior bulb firmness",
+      "Three distinct Baramati planting windows (Kharif, Rangada, Rabi) offer seasonal flexibility"
+    ],
+    "tradeoffs": [
+      "High market price volatility and post-harvest storage losses during humid months",
+      "Shallow root system requires frequent, light drip irrigations; prone to purple blotch disease",
+      "High labor requirement for nursery raising, transplanting, and harvesting"
+    ]
+  },
+  "wheat": {
+    "name": "Wheat",
+    "marathi_name": "गहू",
+    "scientific_name": "Triticum aestivum",
+    "kvk_varieties": [
+      "Phule Samadhan",
+      "GW 496",
+      "Trimbak"
+    ],
+    "seasons": [
+      "rabi"
+    ],
+    "primary_microzones": [
+      "canal_command",
+      "well_irrigated"
+    ],
+    "water_requirement": "medium",
+    "water_requirement_mm": [
+      400,
+      550
+    ],
+    "duration_days": [
+      105,
+      120
+    ],
+    "drought_tolerance": "medium",
+    "ideal_soils": [
+      "deep_black_vertisol",
+      "medium_clay_loam"
+    ],
+    "management_commitment": "low",
+    "market_risk": "low",
+    "economic_return": "high",
+    "temp_range_c": [
+      12,
+      28
+    ],
+    "optimum_temp_c": [
+      16,
+      23
+    ],
+    "optimum_rainfall_mm": [
+      350,
+      500
+    ],
+    "optimal_npk": {
+      "N": 100,
+      "P": 50,
+      "K": 40,
+      "ph": 7.6,
+      "organic_carbon": 0.5
+    },
+    "critical_water_stages": [
+      "Crown root initiation (CRI at 21 days)",
+      "Flowering & grain filling"
+    ],
+    "reasons": [
+      "Standard winter food grain staple for Baramati canal command following Kharif soybean or fallow",
+      "Phule Samadhan is heat-tolerant against Baramati's early February-March terminal heat",
+      "Stable MSP procurement, dependable household food security, and valuable nutritious straw"
+    ],
+    "tradeoffs": [
+      "Requires 4-5 timely irrigations; strictly unsuited for dry rainfed plots",
+      "Terminal heat stress in late February can shrivel grains if sowing is delayed beyond November 15",
+      "Rust monitoring needed during unseasonal cloudy spells"
+    ]
+  },
+  "chickpea": {
+    "name": "Chickpea (Gram/Chana)",
+    "marathi_name": "हरभरा",
+    "scientific_name": "Cicer arietinum",
+    "kvk_varieties": [
+      "Phule Vikram",
+      "Digvijay",
+      "Vijay"
+    ],
+    "seasons": [
+      "rabi"
+    ],
+    "primary_microzones": [
+      "well_irrigated",
+      "rainfed_scarcity"
+    ],
+    "water_requirement": "low",
+    "water_requirement_mm": [
+      250,
+      380
+    ],
+    "duration_days": [
+      90,
+      105
+    ],
+    "drought_tolerance": "high",
+    "ideal_soils": [
+      "medium_clay_loam",
+      "deep_black_vertisol"
+    ],
+    "management_commitment": "low",
+    "market_risk": "low",
+    "economic_return": "high",
+    "temp_range_c": [
+      14,
+      28
+    ],
+    "optimum_temp_c": [
+      18,
+      25
+    ],
+    "optimum_rainfall_mm": [
+      250,
+      400
+    ],
+    "optimal_npk": {
+      "N": 20,
+      "P": 50,
+      "K": 20,
+      "ph": 7.5,
+      "organic_carbon": 0.45
+    },
+    "critical_water_stages": [
+      "Pre-flowering",
+      "Pod development"
+    ],
+    "reasons": [
+      "Best low-water winter pulse for Baramati; thrives with just 1-2 protective irrigations",
+      "Phule Vikram is erect and bred for mechanical combined harvesting, cutting labor costs",
+      "Restores soil fertility via atmospheric nitrogen fixation for the next Kharif season"
+    ],
+    "tradeoffs": [
+      "Over-irrigation during flowering causes excessive vegetative growth and flower shedding",
+      "Pod borer (Helicoverpa armigera) and Fusarium wilt in waterlogged low-lying patches",
+      "Sensitive to high night temperatures during grain maturation"
+    ]
+  },
+  "bajra": {
+    "name": "Bajra (Pearl Millet)",
+    "marathi_name": "बाजरी",
+    "scientific_name": "Pennisetum glaucum",
+    "kvk_varieties": [
+      "Dhanashakti (Biofortified)",
+      "Adishakti",
+      "ICTP 8203"
+    ],
+    "seasons": [
+      "kharif",
+      "summer"
+    ],
+    "primary_microzones": [
+      "rainfed_scarcity"
+    ],
+    "water_requirement": "very_low",
+    "water_requirement_mm": [
+      280,
+      400
+    ],
+    "duration_days": [
+      75,
+      85
+    ],
+    "drought_tolerance": "very_high",
+    "ideal_soils": [
+      "shallow_murrum",
+      "medium_clay_loam"
+    ],
+    "management_commitment": "very_low",
+    "market_risk": "low",
+    "economic_return": "medium",
+    "temp_range_c": [
+      24,
+      38
+    ],
+    "optimum_temp_c": [
+      28,
+      34
+    ],
+    "optimum_rainfall_mm": [
+      250,
+      400
+    ],
+    "optimal_npk": {
+      "N": 50,
+      "P": 25,
+      "K": 25,
+      "ph": 7.6,
+      "organic_carbon": 0.35
+    },
+    "critical_water_stages": [
+      "Panicle emergence",
+      "Flowering & grain setting"
+    ],
+    "reasons": [
+      "Champion climate-resilient crop for Baramati scarcity belt (Supa, Morgaon, rain-shadow zone)",
+      "Dhanashakti is high in iron (71 mg/kg) and zinc (40 mg/kg), promoting nutritional security",
+      "Shortest growth cycle (75-80 days) escapes terminal drought and late monsoon failures",
+      "High biomass green and dry fodder valuable for dairy farmers"
+    ],
+    "tradeoffs": [
+      "Lower gross monetary returns than commercial cash crops in canal command",
+      "Susceptible to grain mold if late monsoon rains hit during harvest in September",
+      "Bird scaring required at grain dough stage in isolated fields"
+    ]
+  },
+  "maize": {
+    "name": "Maize (Fodder & Grain)",
+    "marathi_name": "मका (चारा व दाणा)",
+    "scientific_name": "Zea mays",
+    "kvk_varieties": [
+      "African Tall (Green Fodder)",
+      "Rajarshi",
+      "Pioneer Hybrids"
+    ],
+    "seasons": [
+      "kharif",
+      "rabi",
+      "summer"
+    ],
+    "primary_microzones": [
+      "well_irrigated",
+      "canal_command"
+    ],
+    "water_requirement": "medium",
+    "water_requirement_mm": [
+      450,
+      650
+    ],
+    "duration_days": [
+      85,
+      105
+    ],
+    "drought_tolerance": "medium",
+    "ideal_soils": [
+      "deep_black_vertisol",
+      "medium_clay_loam"
+    ],
+    "management_commitment": "medium",
+    "market_risk": "low",
+    "economic_return": "high",
+    "temp_range_c": [
+      18,
+      35
+    ],
+    "optimum_temp_c": [
+      22,
+      30
+    ],
+    "optimum_rainfall_mm": [
+      450,
+      650
+    ],
+    "optimal_npk": {
+      "N": 100,
+      "P": 50,
+      "K": 40,
+      "ph": 7.4,
+      "organic_carbon": 0.5
+    },
+    "critical_water_stages": [
+      "Tasseling",
+      "Silking & cob filling"
+    ],
+    "reasons": [
+      "Vital dual-purpose crop driving Baramati's massive dairy cooperative economy (Baramati Agro, Govind Milk)",
+      "African Tall provides succulent high-tonnage green fodder (35-45 T/Ha) in 70-80 days",
+      "Excellent break crop between sugarcane replanting cycles with short field turnover"
+    ],
+    "tradeoffs": [
+      "Severe yield loss if water stress occurs at silking and tasseling",
+      "Fall Armyworm (Spodoptera frugiperda) monitoring mandatory during early whorl stage",
+      "Sensitive to soil waterlogging and drainage impedance in heavy clay"
+    ]
+  }
+}

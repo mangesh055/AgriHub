@@ -23,5 +23,17 @@ services:
       - "9001:9001"
     restart: unless-stopped
 
+  agrihub-ml:
+    build:
+      context: ../Crop recommendation
+      dockerfile: agrihub-ml/Dockerfile
+    container_name: agrihub_ml_baramati
+    ports:
+      - "8000:8000"
+    environment:
+      - AGRIHUB_API_KEY=agrihub-prod-key-2026
+      - PORT=8000
+    restart: unless-stopped
+
 volumes:
   pgdata:

@@ -7,161 +7,344 @@ import { randomUUID } from 'crypto';
 
 interface RecommendationInput {
   farmId: string;
+  farm?: any;
   soil: SoilRecord;
-  season?: 'KHARIF' | 'RABI' | 'ZAID';
+  season?: string;
   irrigationSource: string;
 }
 
+const ML_SERVICE_URL = process.env.AGRIHUB_ML_URL || 'http://127.0.0.1:8000';
+const ML_API_KEY = process.env.AGRIHUB_API_KEY || 'agrihub-prod-key-2026';
+
 export class CropRecommendationService {
-  public static recommend(input: RecommendationInput): CropRecommendationResult {
-    const { farmId, soil, season = 'KHARIF', irrigationSource } = input;
+  /**
+   * Generates Top-3 Crop Recommendations.
+   * Primary: Baramati ML Microservice (calibrated via ICAR-NIASM & KVK Baramati).
+   * Fallback: Local Baramati Agronomic Rule-Engine.
+   */
+  public static async recommend(input: RecommendationInput): Promise<CropRecommendationResult> {
+    const { farmId, farm, soil, season = 'KHARIF', irrigationSource } = input;
+
+    // 1. Resolve Baramati microzone and soil type from farm & soil records
+    const village = farm?.village || 'Malegaon';
+    const vLower = village.toLowerCase();
+
+    // Base microzone from village or water sources
+    let microzone: 'canal_command' | 'well_irrigated' | 'rainfed_scarcity' = 'canal_command';
+    if (vLower.includes('supa') || vLower.includes('morgaon') || vLower.includes('khandaj') || vLower.includes('anjangaon')) {
+      microzone = 'rainfed_scarcity';
+    } else if (vLower.includes('shardanagar') || vLower.includes('jalochi') || vLower.includes('kashti') || vLower.includes('rui') || vLower.includes('songaon')) {
+      microzone = 'well_irrigated';
+    } else {
+      microzone = 'canal_command';
+    }
+
+    // Resolve soil type: prioritize farmer's registered soil record
+    let soilType: 'deep_black_vertisol' | 'medium_clay_loam' | 'shallow_murrum' = 'deep_black_vertisol';
+    const registeredSoil = (soil?.soilType || '').toLowerCase();
+
+    if (registeredSoil.includes('shallow') || registeredSoil.includes('murrum') || registeredSoil.includes('red') || registeredSoil.includes('sandy')) {
+      soilType = 'shallow_murrum';
+    } else if (registeredSoil.includes('medium') || registeredSoil.includes('alluvial') || registeredSoil.includes('clay_loam') || registeredSoil.includes('loam') || registeredSoil.includes('silt')) {
+      soilType = 'medium_clay_loam';
+    } else if (registeredSoil.includes('deep') || registeredSoil.includes('vertisol') || registeredSoil.includes('black')) {
+      soilType = 'deep_black_vertisol';
+    } else {
+      // Microzone fallback if not specified
+      soilType = microzone === 'rainfed_scarcity' ? 'shallow_murrum' : microzone === 'well_irrigated' ? 'medium_clay_loam' : 'deep_black_vertisol';
+    }
+
+    // Map season
+    const sLower = season.toLowerCase();
+    let mappedSeason = 'kharif';
+    if (sLower.includes('annual') || sLower.includes('adsali') || sLower.includes('suru')) {
+      mappedSeason = 'annual';
+    } else if (sLower.includes('rabi') || sLower.includes('winter')) {
+      mappedSeason = 'rabi';
+    } else if (sLower.includes('zaid') || sLower.includes('summer')) {
+      mappedSeason = 'summer';
+    }
+
+    // Map water resources and irrigation methods
+    const allWaterTokens = [
+      ...(Array.isArray(farm?.waterSources) ? farm.waterSources : []),
+      farm?.irrigationSource || '',
+      irrigationSource || ''
+    ].join(' ').toUpperCase();
+
+    const isCanal = allWaterTokens.includes('CANAL');
+    const isRiver = allWaterTokens.includes('RIVER');
+    const isBorewell = allWaterTokens.includes('BOREWELL');
+    const isOpenWell = allWaterTokens.includes('OPEN_WELL') || allWaterTokens.includes('WELL');
+    const isFarmPond = allWaterTokens.includes('FARM_POND') || allWaterTokens.includes('POND');
+    const isRainfed = allWaterTokens.includes('RAINFED');
+
+    const isDrip = allWaterTokens.includes('DRIP');
+    const isSprinkler = allWaterTokens.includes('SPRINKLER');
+    const isFlood = allWaterTokens.includes('FLOOD');
+
+    // Categorize primary irrigation source
+    let mappedSource: 'canal' | 'borewell' | 'open_well' | 'river' | 'farm_pond' | 'rainfed' = 'canal';
+    if (isCanal) mappedSource = 'canal';
+    else if (isRiver) mappedSource = 'river';
+    else if (isBorewell) mappedSource = 'borewell';
+    else if (isOpenWell) mappedSource = 'open_well';
+    else if (isFarmPond) mappedSource = 'farm_pond';
+    else if (isRainfed) mappedSource = 'rainfed';
+    else mappedSource = 'canal';
+
+    // Categorize irrigation method
+    let irrigationMethod: 'drip' | 'sprinkler' | 'flood' | 'rainfed' = 'drip';
+    if (isDrip) irrigationMethod = 'drip';
+    else if (isSprinkler) irrigationMethod = 'sprinkler';
+    else if (isFlood) irrigationMethod = 'flood';
+    else if (isRainfed && !isCanal && !isBorewell && !isOpenWell) irrigationMethod = 'rainfed';
+    else irrigationMethod = 'drip';
+
+    // Derive volume and reliability
+    let waterAvailability: 'very_high' | 'high' | 'medium' | 'low' | 'scarce' = 'high';
+    if (isCanal || isRiver) waterAvailability = isDrip ? 'very_high' : 'high';
+    else if (isBorewell || isOpenWell) waterAvailability = 'medium';
+    else if (isFarmPond) waterAvailability = 'medium';
+    else if (isRainfed) waterAvailability = 'low';
+
+    let waterReliability: 'highly_reliable' | 'reliable' | 'moderate' | 'unreliable' = 'reliable';
+    if (isCanal) waterReliability = 'highly_reliable';
+    else if (isRiver || isBorewell) waterReliability = 'reliable';
+    else if (isOpenWell || isFarmPond) waterReliability = 'moderate';
+    else if (isRainfed) waterReliability = 'unreliable';
+
+    // 2. Attempt prediction from Baramati ML Microservice
+    try {
+      const mlPayload = {
+        district: 'Pune',
+        taluka: 'Baramati',
+        village,
+        microzone,
+        soil_type: soilType,
+        season: mappedSeason,
+        farm_area_acres: Number(farm?.areaAcres) || 4.0,
+        irrigation_source: mappedSource,
+        water_availability: waterAvailability,
+        seasonal_water_reliability: waterReliability,
+        irrigation_method: irrigationMethod,
+        previous_crop: (soil?.previousCrop || 'Sugarcane').toLowerCase(),
+        soil_test: {
+          nitrogen: soil?.nitrogen ? Number(soil.nitrogen) : null,
+          phosphorus: soil?.phosphorus ? Number(soil.phosphorus) : null,
+          potassium: soil?.potassium ? Number(soil.potassium) : null,
+          ph: soil?.ph ? Number(soil.ph) : null,
+          organic_carbon: soil?.organicCarbon ? Number(soil.organicCarbon) : null,
+          source: soil?.nitrogen ? 'soil_test' : 'unknown'
+        },
+        weather: {
+          temperature_avg: 27.5,
+          temperature_min: 20.0,
+          temperature_max: 34.0,
+          humidity_avg: 68.0,
+          rainfall: 480.0,
+          rainfall_probability: 45.0,
+          wind_speed: 13.0
+        }
+      };
+
+      const mlRes = await fetch(`${ML_SERVICE_URL}/api/v1/recommend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': ML_API_KEY
+        },
+        body: JSON.stringify(mlPayload),
+        signal: AbortSignal.timeout(3000)
+      });
+
+      if (mlRes.ok) {
+        const mlData = await mlRes.json();
+        if (mlData.recommendations && mlData.recommendations.length > 0) {
+          console.log(`[CropRecommendationService] Live prediction received from Baramati ML Service (${mlData.recommendations.length} crops)`);
+
+          const mappedRecs: CropRecommendationItem[] = mlData.recommendations.map((item: any) => {
+            const primaryVariety = item.kvk_varieties && item.kvk_varieties.length > 0 ? item.kvk_varieties[0] : '';
+            const displayName = primaryVariety ? `${item.crop_name} (${primaryVariety})` : item.crop_name;
+            const duration = Array.isArray(item.duration_days) ? item.duration_days[0] : (item.duration_days || 95);
+
+            // Yield range estimation based on KVK trials
+            let yieldRange = '12 - 16 Quintals/Acre';
+            let roi = 42;
+            if (item.crop === 'sugarcane') {
+              yieldRange = '40 - 55 Tonnes/Acre (Adsali/Suru)';
+              roi = 48;
+            } else if (item.crop === 'soybean') {
+              yieldRange = '10 - 14 Quintals/Acre';
+              roi = 45;
+            } else if (item.crop === 'wheat') {
+              yieldRange = '18 - 24 Quintals/Acre';
+              roi = 39;
+            } else if (item.crop === 'onion') {
+              yieldRange = '90 - 130 Quintals/Acre';
+              roi = 58;
+            } else if (item.crop === 'sorghum') {
+              yieldRange = '8 - 12 Quintals/Acre (Maldandi)';
+              roi = 36;
+            } else if (item.crop === 'chickpea') {
+              yieldRange = '8 - 11 Quintals/Acre';
+              roi = 44;
+            } else if (item.crop === 'maize') {
+              yieldRange = '22 - 28 Quintals/Acre';
+              roi = 40;
+            }
+
+            return {
+              cropName: displayName,
+              marathiName: item.marathi_name,
+              kvkVarieties: item.kvk_varieties || [],
+              suitabilityScore: Math.round(item.confidence_pct || (item.final_score * 100)),
+              matchReasons: item.reasons || [],
+              tradeoffs: item.tradeoffs || [],
+              waterRequirement: (item.water_requirement || 'MEDIUM').toUpperCase(),
+              waterFeasibilityScore: item.water_feasibility_score,
+              regionalScore: item.regional_score,
+              agronomicScore: item.agronomic_score,
+              droughtTolerance: item.drought_tolerance,
+              regionalStatus: item.regional_status,
+              durationDays: duration,
+              estimatedYieldRange: yieldRange,
+              projectedRoiPct: roi
+            };
+          });
+
+          return {
+            id: randomUUID(),
+            farmId,
+            recommendations: mappedRecs,
+            inputSnapshot: mlPayload,
+            modelVersion: mlData.model_version || 'agrihub-baramati-ml-v2.0',
+            microzone: mlData.farmer_summary?.microzone || microzone,
+            village,
+            soilTestStatus: mlData.soil_test_status || 'KVK Baramati Agronomic Standards',
+            researchPartner: 'ICAR-NIASM & KVK Baramati',
+            createdAt: new Date().toISOString()
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[CropRecommendationService] ML Microservice not responding, executing Baramati agronomic fallback:', err?.message || err);
+    }
+
+    // 3. Fallback: Local Baramati Agronomic Rule-Engine
     const recommendations: CropRecommendationItem[] = [];
 
-    const prevCrop = (soil.previousCrop || '').toLowerCase();
-    const prevYield = soil.previousYieldQuintals || 0;
-    const hasDrip = irrigationSource.includes('DRIP');
-    const hasBorewell = irrigationSource.includes('BOREWELL');
-    const hasCanal = irrigationSource.includes('CANAL');
-    const isHeavySoil = soil.soilType === 'BLACK_COTTON' || soil.soilType === 'CLAY_LOAM' || soil.soilType === 'SILTY_CLAY';
-    const isLoamySoil = soil.soilType === 'ALLUVIAL' || soil.soilType === 'SANDY_LOAM';
-
-    // 1. Soybean Rule
-    let soybeanScore = 80;
-    const soybeanReasons: string[] = [];
-    if (soil.ph >= 6.5 && soil.ph <= 7.8) {
-      soybeanScore += 8;
-      soybeanReasons.push(`Soil pH (${soil.ph}) is in the optimal range (6.5 - 7.5).`);
-    }
-    if (soil.potassium > 250) {
-      soybeanScore += 5;
-      soybeanReasons.push(`High potassium (${soil.potassium} kg/ha) promotes pod filling and disease resistance.`);
-    }
-    if (isHeavySoil) {
-      soybeanScore += 5;
-      soybeanReasons.push(`Heavy/black soil provides excellent moisture retentivity during flowering.`);
-    }
-    if (prevCrop.includes('cotton') || prevCrop.includes('sugarcane') || prevCrop.includes('maize')) {
-      soybeanScore += 8;
-      soybeanReasons.push(`Excellent crop rotation: Soybean legumes restore nitrogen depleted by previous ${soil.previousCrop}.`);
-    }
-    if (prevYield > 10) {
-      soybeanReasons.push(`Historical plot productivity (${prevYield} Qt/Acre) indicates high vigor.`);
+    // Sugarcane (Baramati Canal Belt Champion)
+    if (mappedSeason === 'annual' || isCanal) {
+      recommendations.push({
+        cropName: 'Sugarcane (Co 86032 - Nira)',
+        marathiName: 'ऊस (को ८६०३२ - नीरा)',
+        kvkVarieties: ['Co 86032 (Nira)', 'VSI 08005', 'MS 10001'],
+        suitabilityScore: isCanal ? 95 : 65,
+        matchReasons: [
+          'High adaptability in Nira Left Bank Canal command with Deep Black Vertisols.',
+          'Certified KVK Baramati variety Co 86032 offers high sucrose content (13.5%).',
+          'Heavy soil profile retains adequate capillary moisture.'
+        ],
+        tradeoffs: [
+          'Requires 1800-2500 mm water across 300+ days; KVK recommends drip automation.',
+          'Risk of secondary salinity if flood irrigation is practiced.'
+        ],
+        waterRequirement: 'VERY_HIGH',
+        waterFeasibilityScore: isCanal ? 0.95 : 0.45,
+        regionalScore: 0.95,
+        durationDays: 360,
+        estimatedYieldRange: '45 - 55 Tonnes/Acre',
+        projectedRoiPct: 48
+      });
     }
 
-    const soybeanYieldLow = prevYield > 10 ? Math.round(prevYield * 0.95) : 10;
-    const soybeanYieldHigh = prevYield > 10 ? Math.round(prevYield * 1.3) : 14;
-
+    // Soybean (KVK Shardanagar Rainfed/Drip Champion)
     recommendations.push({
-      cropName: 'Soybean (JS-335 / NRC-37)',
-      suitabilityScore: Math.min(soybeanScore, 98),
-      matchReasons: soybeanReasons,
+      cropName: 'Soybean (Phule Sangam - KDS-726)',
+      marathiName: 'सोयाबीन (फुले संगम)',
+      kvkVarieties: ['Phule Sangam (KDS-726)', 'JS-335', 'Phule Kimaya'],
+      suitabilityScore: isRainfed ? 74 : 92,
+      matchReasons: [
+        'KVK Baramati flagship variety Phule Sangam exhibits rust and pod-shattering resistance.',
+        'Biological nitrogen fixation replenishes soil exhausted by previous harvest.',
+        'Optimal match for Baramati Kharif planting window (June 15 - July 15).'
+      ],
+      tradeoffs: [
+        'Excessive rainfall during harvesting (Sept-Oct) can cause seed discoloration.'
+      ],
       waterRequirement: 'MEDIUM',
-      durationDays: 95,
-      estimatedYieldRange: `${soybeanYieldLow} - ${soybeanYieldHigh} Quintals/Acre`,
-      projectedRoiPct: 44
+      waterFeasibilityScore: 0.88,
+      regionalScore: 0.92,
+      durationDays: 100,
+      estimatedYieldRange: '11 - 15 Quintals/Acre',
+      projectedRoiPct: 45
     });
 
-    // 2. Bt Cotton Rule
-    let cottonScore = 75;
-    const cottonReasons: string[] = [];
-    if (soil.soilType === 'BLACK_COTTON') {
-      cottonScore += 10;
-      cottonReasons.push('Deep black cotton soil provides ideal root anchorage and capillary moisture.');
-    }
-    if (hasDrip) {
-      cottonScore += 8;
-      cottonReasons.push('Drip irrigation enables precision fertigation during boll formation.');
-    }
-    if (prevCrop.includes('soybean') || prevCrop.includes('gram') || prevCrop.includes('pulse')) {
-      cottonScore += 8;
-      cottonReasons.push(`Beneficial rotation: Follows legume crop (${soil.previousCrop}) utilizing fixed organic nitrogen.`);
-    }
-    if (soil.potassium > 280) {
-      cottonScore += 4;
-      cottonReasons.push('Strong potassium levels prevent premature leaf reddening and square drop.');
-    }
+    // Rabi Jowar (Supa / Scarcity Champion)
     recommendations.push({
-      cropName: 'Bt Cotton (Bollgard II)',
-      suitabilityScore: Math.min(cottonScore, 95),
-      matchReasons: cottonReasons,
-      waterRequirement: 'HIGH',
-      durationDays: 160,
-      estimatedYieldRange: '12 - 16 Quintals/Acre',
-      projectedRoiPct: 39
-    });
-
-    // 3. Wheat Rule (Rabi / Winter)
-    let wheatScore = 76;
-    const wheatReasons: string[] = [];
-    if (soil.soilType === 'ALLUVIAL' || soil.soilType === 'BLACK_COTTON' || soil.soilType === 'CLAY_LOAM') {
-      wheatScore += 8;
-      wheatReasons.push('Soil texture supports firm tillering and root spread.');
-    }
-    if (hasBorewell || hasCanal) {
-      wheatScore += 8;
-      wheatReasons.push('Assured irrigation sources cover critical Crown Root Initiation (CRI) stages.');
-    }
-    if (prevCrop.includes('soybean') || prevCrop.includes('paddy')) {
-      wheatScore += 6;
-      wheatReasons.push(`Standard high-yield sequential rotation following ${soil.previousCrop}.`);
-    }
-    recommendations.push({
-      cropName: 'Sharbati / Durum Wheat',
-      suitabilityScore: Math.min(wheatScore, 92),
-      matchReasons: wheatReasons,
-      waterRequirement: 'MEDIUM',
+      cropName: 'Rabi Jowar (Maldandi M 35-1)',
+      marathiName: 'रब्बी ज्वारी (मालदांडी एम ३५-१)',
+      kvkVarieties: ['Maldandi M 35-1', 'Phule Revati', 'Phule Vasudha'],
+      suitabilityScore: microzone === 'rainfed_scarcity' ? 96 : 85,
+      matchReasons: [
+        'ICAR-NIASM benchmark scarcity crop with extreme abiotic drought tolerance.',
+        'Excels in Shallow Murrum and moisture-stress pockets of Supa and Morgaon.',
+        'Produces premium pearly grain and superior nutritional cattle stover.'
+      ],
+      tradeoffs: [
+        'Gross cash yield is lower than commercial sugarcane or onion.'
+      ],
+      waterRequirement: 'LOW',
+      waterFeasibilityScore: 0.95,
+      regionalScore: 0.96,
       durationDays: 115,
-      estimatedYieldRange: '18 - 22 Quintals/Acre',
-      projectedRoiPct: 40
+      estimatedYieldRange: '9 - 13 Quintals/Acre',
+      projectedRoiPct: 38
     });
 
-    // 4. Red Onion (Late Kharif / Rabi)
-    let onionScore = 72;
-    const onionReasons: string[] = [];
-    if (soil.ph >= 6.0 && soil.ph <= 7.6) {
-      onionScore += 8;
-      onionReasons.push(`Soil pH (${soil.ph}) is well-suited for bulb development.`);
-    }
-    if (soil.organicCarbon >= 0.6) {
-      onionScore += 7;
-      onionReasons.push(`Organic carbon (${soil.organicCarbon}%) provides friable root structure.`);
-    }
-    if (hasDrip) {
-      onionScore += 6;
-      onionReasons.push('Micro-sprinkler or drip prevents purple blotch disease compared to flood.');
-    }
+    // Red Onion
     recommendations.push({
-      cropName: 'Red Onion (Bhima Super / Shakti)',
-      suitabilityScore: Math.min(onionScore, 90),
-      matchReasons: onionReasons,
+      cropName: 'Red Onion (Bhima Super)',
+      marathiName: 'कांदा (भीमा सुपर)',
+      kvkVarieties: ['Bhima Super', 'Bhima Red', 'Bhima Kiran'],
+      suitabilityScore: 84,
+      matchReasons: [
+        'DOGR/KVK recommended variety with uniform bulb size and bulb-rotting tolerance.',
+        'High cash liquidity at Baramati and Pandare APMC market yards.'
+      ],
+      tradeoffs: [
+        'Sensitive to thrips and purple blotch under humid conditions; requires disciplined scouting.'
+      ],
       waterRequirement: 'MEDIUM',
+      waterFeasibilityScore: 0.82,
+      regionalScore: 0.85,
       durationDays: 120,
-      estimatedYieldRange: '90 - 130 Quintals/Acre',
+      estimatedYieldRange: '95 - 130 Quintals/Acre',
       projectedRoiPct: 56
     });
 
-    // 5. Chickpea / Bengal Gram (Chana)
-    let gramScore = 70;
-    const gramReasons: string[] = [];
-    if (soil.ph >= 6.8 && soil.ph <= 8.2) {
-      gramScore += 7;
-      gramReasons.push('Tolerant to mild alkalinity and requires low residual nitrogen.');
-    }
-    if (isHeavySoil) {
-      gramScore += 8;
-      gramReasons.push('Subsurface moisture in deep soils supports rainfed/minimal irrigation chana.');
-    }
+    // Chickpea (Rabi)
     recommendations.push({
-      cropName: 'Chickpea / Bengal Gram (Digvijay)',
-      suitabilityScore: Math.min(gramScore, 89),
-      matchReasons: gramReasons,
+      cropName: 'Chickpea / Chana (Phule Vikram)',
+      marathiName: 'हरभरा (फुले विक्रम)',
+      kvkVarieties: ['Phule Vikram', 'Digvijay', 'Vijay'],
+      suitabilityScore: 82,
+      matchReasons: [
+        'Ideal for mechanical harvesting with erect plant architecture.',
+        'Low water footprint; thrives on residual moisture after Kharif harvest.'
+      ],
+      tradeoffs: [
+        'Vulnerable to pod borer (Helicoverpa) during pod development.'
+      ],
       waterRequirement: 'LOW',
+      waterFeasibilityScore: 0.90,
+      regionalScore: 0.88,
       durationDays: 105,
       estimatedYieldRange: '8 - 12 Quintals/Acre',
-      projectedRoiPct: 48
+      projectedRoiPct: 44
     });
 
-    // Sort by suitability score
     recommendations.sort((a, b) => b.suitabilityScore - a.suitabilityScore);
 
     return {
@@ -169,16 +352,17 @@ export class CropRecommendationService {
       farmId,
       recommendations,
       inputSnapshot: {
-        soilType: soil.soilType,
-        ph: soil.ph,
-        nitrogen: soil.nitrogen,
-        phosphorus: soil.phosphorus,
-        potassium: soil.potassium,
-        organicCarbon: soil.organicCarbon,
-        irrigationSource,
-        season
+        village,
+        microzone,
+        soilType,
+        season: mappedSeason,
+        irrigationSource
       },
-      modelVersion: 'RF-Agronomic-Rotation-V2.5',
+      modelVersion: 'Baramati-Agronomic-Heuristic-v2.0',
+      microzone,
+      village,
+      soilTestStatus: 'Baramati Micro-Zone Default (Fallback Heuristic)',
+      researchPartner: 'ICAR-NIASM & KVK Baramati',
       createdAt: new Date().toISOString()
     };
   }

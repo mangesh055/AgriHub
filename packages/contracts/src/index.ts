@@ -14,11 +14,19 @@ export const IrrigationSourceEnum = z.enum([
   'SPRINKLER',
   'RAINFED',
   'RIVER_PUMP',
+  'RIVER',
+  'RIVER_LIFT',
+  'OPEN_WELL',
+  'FARM_POND',
+  'FLOOD',
   'OTHER'
 ]);
 export type IrrigationSource = z.infer<typeof IrrigationSourceEnum>;
 
 export const SoilTypeEnum = z.enum([
+  'DEEP_BLACK_VERTISOL',
+  'MEDIUM_CLAY_LOAM',
+  'SHALLOW_MURRUM',
   'BLACK_COTTON',
   'ALLUVIAL',
   'RED_SOIL',
@@ -188,9 +196,17 @@ export type SoilRecord = z.infer<typeof SoilRecordSchema>;
 
 export const CropRecommendationItemSchema = z.object({
   cropName: z.string(),
+  marathiName: z.string().optional(),
+  kvkVarieties: z.array(z.string()).optional(),
   suitabilityScore: z.number().min(0).max(100),
   matchReasons: z.array(z.string()),
-  waterRequirement: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  tradeoffs: z.array(z.string()).optional(),
+  waterRequirement: z.enum(['LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH']).or(z.string()),
+  waterFeasibilityScore: z.number().optional(),
+  regionalScore: z.number().optional(),
+  agronomicScore: z.number().optional(),
+  droughtTolerance: z.string().optional(),
+  regionalStatus: z.string().optional(),
   durationDays: z.number(),
   estimatedYieldRange: z.string(),
   projectedRoiPct: z.number()
@@ -203,6 +219,10 @@ export const CropRecommendationResultSchema = z.object({
   recommendations: z.array(CropRecommendationItemSchema),
   inputSnapshot: z.record(z.any()),
   modelVersion: z.string(),
+  microzone: z.string().optional(),
+  village: z.string().optional(),
+  soilTestStatus: z.string().optional(),
+  researchPartner: z.string().optional(),
   createdAt: z.string().datetime()
 });
 export type CropRecommendationResult = z.infer<typeof CropRecommendationResultSchema>;

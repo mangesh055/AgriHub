@@ -9,8 +9,10 @@
   ],
   "scripts": {
     "dev": "concurrently -n \"api,web\" -c \"green,cyan\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:all": "concurrently -n \"api,web,ml\" -c \"green,cyan,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run ml\"",
     "dev:api": "npm run dev --workspace=@agrihub/api",
     "dev:web": "npm run dev --workspace=@agrihub/web",
+    "ml": "python -m uvicorn app.main:app --port 8000 --app-dir \"Crop recommendation/agrihub-ml\"",
     "build": "npm run build --workspaces --if-present",
     "build:contracts": "npm run build --workspace=@agrihub/contracts",
     "build:api": "npm run build --workspace=@agrihub/api",

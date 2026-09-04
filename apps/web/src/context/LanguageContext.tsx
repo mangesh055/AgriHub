@@ -138,7 +138,17 @@ export const DICTIONARY: Translations = {
   cropCycleSuccess: { en: 'Crop cycle successfully initiated!', mr: 'पीक चक्र यशस्वीरित्या सुरू झाले!' },
   currentlyActiveCycle: { en: 'Currently Active Crop Cycle in Field', mr: 'शेतामध्ये सध्या चालू असलेले पीक चक्र' },
   scanLeafHealth: { en: 'Scan Leaf for Disease', mr: 'रोगासाठी पान स्कॅन करा' },
-  iotIrrigation: { en: 'IoT Irrigation Guidance', mr: 'IoT सिंचन सल्ला' }
+  iotIrrigation: { en: 'IoT Irrigation Guidance', mr: 'IoT सिंचन सल्ला' },
+
+  // Baramati Regional Intelligence
+  baramatiRegion: { en: 'Baramati Taluka, Pune District', mr: 'बारामती तालुका, पुणे जिल्हा' },
+  researchPartnerTag: { en: 'ICAR-NIASM & KVK Baramati Certified Trials', mr: 'ICAR-NIASM व कृषी विज्ञान केंद्र (KVK) बारामती प्रमाणित' },
+  microzoneCanal: { en: 'Canal Command (Nira Left Bank)', mr: 'कालवा लाभ क्षेत्र (नीरा डावा कालवा)' },
+  microzoneWell: { en: 'Well & Drip Irrigated Belt', mr: 'विहीर व ठिबक सिंचन पट्टा' },
+  microzoneScarcity: { en: 'Rainfed Scarcity Zone (Supa/Morgaon)', mr: 'कोरडवाहू टंचाई पट्टा (सुपा/मोरगाव)' },
+  kvkCertifiedVarieties: { en: 'Certified KVK Seed Varieties', mr: 'KVK प्रमाणित बियाणे वाण' },
+  abioticStressTradeoffs: { en: 'Abiotic Stress & Field Management Trade-offs', mr: 'हवामान ताण व शेत व्यवस्थापन सल्ला' },
+  seasonAnnual: { en: 'Annual (Sugarcane)', mr: 'वार्षिक (ऊस)' }
 };
 
 interface LanguageContextType {

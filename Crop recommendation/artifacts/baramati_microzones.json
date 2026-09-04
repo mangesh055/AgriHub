@@ -1,0 +1,77 @@
+{
+  "canal_command": {
+    "name": "Canal Command Zone (Nira Left Bank Canal)",
+    "marathi_name": "निसर्ग व कालवा लाभक्षेत्र",
+    "villages": [
+      "Malegaon",
+      "Pandare",
+      "Baramati Rural",
+      "Someshwar",
+      "Nira"
+    ],
+    "water_source": "Nira Left Bank Canal + Veer/Nira Deoghar + Wells",
+    "water_security": "high",
+    "typical_soil": "deep_black_vertisol",
+    "priority_crops": [
+      "sugarcane",
+      "onion",
+      "wheat",
+      "soybean",
+      "maize"
+    ],
+    "abiotic_stresses": [
+      "Soil Salinity / Sodicity",
+      "Waterlogging in low-lying canal depressions"
+    ]
+  },
+  "well_irrigated": {
+    "name": "Borewell & Lift Irrigated Zone",
+    "marathi_name": "कूपनलिका व ठिबक बागायत पट्टा",
+    "villages": [
+      "Shardanagar (KVK)",
+      "Songaon",
+      "Jalochi",
+      "Bhavaninagar",
+      "Karanje"
+    ],
+    "water_source": "Borewells + Farm Ponds + Lift Irrigation",
+    "water_security": "medium_to_high",
+    "typical_soil": "medium_clay_loam",
+    "priority_crops": [
+      "soybean",
+      "maize",
+      "wheat",
+      "chickpea",
+      "onion",
+      "sugarcane"
+    ],
+    "abiotic_stresses": [
+      "Groundwater depletion in peak summer (April-May)",
+      "High water hardness/salts"
+    ]
+  },
+  "rainfed_scarcity": {
+    "name": "Rainfed Scarcity Zone (Rain-Shadow)",
+    "marathi_name": "कोरडवाहू / अवर्षण प्रवण पट्टा",
+    "villages": [
+      "Supa",
+      "Morgaon",
+      "Tardoli",
+      "Jalgaon KP",
+      "Supe Pargana"
+    ],
+    "water_source": "Monsoon Rainfall (450-500 mm) + Shallow Dugwells",
+    "water_security": "low",
+    "typical_soil": "shallow_murrum",
+    "priority_crops": [
+      "sorghum",
+      "bajra",
+      "chickpea"
+    ],
+    "abiotic_stresses": [
+      "Mid-season drought spells (July-August)",
+      "High soil surface evaporation",
+      "Shallow root depth over basalt"
+    ]
+  }
+}

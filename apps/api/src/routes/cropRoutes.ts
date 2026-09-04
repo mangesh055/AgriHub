@@ -28,8 +28,9 @@ cropRouter.post('/recommendations', async (req: Request, res: Response) => {
     testDate: new Date().toISOString().split('T')[0]
   };
 
-  const result = CropRecommendationService.recommend({
+  const result = await CropRecommendationService.recommend({
     farmId: targetFarmId,
+    farm,
     soil: latestSoil,
     season,
     irrigationSource: farm?.irrigationSource || 'DRIP'

@@ -1,0 +1,186 @@
+{
+  "version": "agrihub-baramati-v1.0.0",
+  "region": "Baramati, Pune District, Maharashtra",
+  "target": "crop",
+  "classes": [
+    "bajra",
+    "chickpea",
+    "maize",
+    "onion",
+    "sorghum",
+    "soybean",
+    "sugarcane",
+    "wheat"
+  ],
+  "features": {
+    "required": {
+      "microzone": {
+        "type": "string",
+        "enum": [
+          "canal_command",
+          "well_irrigated",
+          "rainfed_scarcity"
+        ],
+        "description": "Baramati farming sub-zone"
+      },
+      "soil_type": {
+        "type": "string",
+        "enum": [
+          "deep_black_vertisol",
+          "medium_clay_loam",
+          "shallow_murrum"
+        ],
+        "description": "Baramati soil classification"
+      },
+      "season": {
+        "type": "string",
+        "enum": [
+          "kharif",
+          "rabi",
+          "summer",
+          "annual"
+        ],
+        "description": "Crop cycle season"
+      },
+      "temperature_avg": {
+        "type": "float",
+        "unit": "Celsius",
+        "default": 27.5
+      },
+      "temperature_min": {
+        "type": "float",
+        "unit": "Celsius",
+        "default": 20.0
+      },
+      "temperature_max": {
+        "type": "float",
+        "unit": "Celsius",
+        "default": 34.0
+      },
+      "humidity_avg": {
+        "type": "float",
+        "unit": "%",
+        "default": 65.0
+      },
+      "rainfall": {
+        "type": "float",
+        "unit": "mm",
+        "default": 450.0
+      },
+      "rainfall_probability": {
+        "type": "float",
+        "unit": "%",
+        "default": 45.0
+      },
+      "forecast_rainfall": {
+        "type": "float",
+        "unit": "mm",
+        "default": 25.0
+      },
+      "historical_seasonal_rainfall": {
+        "type": "float",
+        "unit": "mm",
+        "default": 480.0
+      },
+      "wind_speed": {
+        "type": "float",
+        "unit": "km/h",
+        "default": 12.0
+      }
+    },
+    "optional_soil_test": {
+      "nitrogen": {
+        "type": "float",
+        "unit": "kg/ha",
+        "nullable": true,
+        "default": null
+      },
+      "phosphorus": {
+        "type": "float",
+        "unit": "kg/ha",
+        "nullable": true,
+        "default": null
+      },
+      "potassium": {
+        "type": "float",
+        "unit": "kg/ha",
+        "nullable": true,
+        "default": null
+      },
+      "ph": {
+        "type": "float",
+        "unit": "pH scale (0-14)",
+        "nullable": true,
+        "default": null
+      },
+      "organic_carbon": {
+        "type": "float",
+        "unit": "%",
+        "nullable": true,
+        "default": null
+      }
+    },
+    "farmer_context": {
+      "district": {
+        "type": "string",
+        "default": "Pune"
+      },
+      "taluka": {
+        "type": "string",
+        "default": "Baramati"
+      },
+      "village": {
+        "type": "string",
+        "nullable": true,
+        "description": "e.g. Malegaon, Shardanagar, Supa, Pandare"
+      },
+      "farm_area_acres": {
+        "type": "float",
+        "default": 3.0
+      },
+      "irrigation_source": {
+        "type": "string",
+        "enum": [
+          "canal",
+          "borewell",
+          "open_well",
+          "river",
+          "farm_pond",
+          "rainfed"
+        ]
+      },
+      "water_availability": {
+        "type": "string",
+        "enum": [
+          "high",
+          "medium",
+          "low",
+          "scarce",
+          "very_high"
+        ]
+      },
+      "seasonal_water_reliability": {
+        "type": "string",
+        "enum": [
+          "reliable",
+          "highly_reliable",
+          "moderate",
+          "unreliable"
+        ]
+      },
+      "irrigation_method": {
+        "type": "string",
+        "enum": [
+          "drip",
+          "sprinkler",
+          "flood",
+          "rainfed"
+        ]
+      },
+      "previous_crop": {
+        "type": "string",
+        "nullable": true
+      }
+    }
+  }
+}

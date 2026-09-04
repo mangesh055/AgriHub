@@ -6,23 +6,23 @@ import { db } from '../services/db.js';
 export const weatherRouter = Router();
 
 async function resolveFarmLocation(farmId?: string): Promise<{ lat: number; lng: number; farm: any }> {
-  let lat = 18.4875;
-  let lng = 74.1332;
+  let lat = 18.1519;
+  let lng = 74.5771;
   let farm: any = null;
 
   if (farmId && farmId !== 'undefined' && farmId !== 'null') {
     const farms = await db.getFarms();
     farm = farms.find((f) => f.id === farmId) || store.farms.get(farmId);
     if (farm) {
-      lat = Number(farm.latitude) || 18.4875;
-      lng = Number(farm.longitude) || 74.1332;
+      lat = Number(farm.latitude) || 18.1519;
+      lng = Number(farm.longitude) || 74.5771;
     }
   } else {
     const farms = await db.getFarms();
     farm = farms[0] || Array.from(store.farms.values())[0] || null;
     if (farm) {
-      lat = Number(farm.latitude) || 18.4875;
-      lng = Number(farm.longitude) || 74.1332;
+      lat = Number(farm.latitude) || 18.1519;
+      lng = Number(farm.longitude) || 74.5771;
     }
   }
   return { lat, lng, farm };

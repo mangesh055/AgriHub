@@ -101,8 +101,8 @@ export class WeatherService {
    * with all 11 recommended agronomic inputs.
    */
   public static async getComprehensiveWeather(
-    lat: number = 18.4875,
-    lng: number = 74.1332,
+    lat: number = 18.1519,
+    lng: number = 74.5771,
     farmId?: string
   ): Promise<ComprehensiveWeatherData> {
     const seasonInfo = this.getSeasonInfo();

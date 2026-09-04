@@ -13,17 +13,21 @@ interface FarmRequiredModalProps {
 }
 
 const WATER_SOURCE_OPTIONS = [
-  { id: 'DRIP', label: 'Drip Irrigation (Micro-drip)', labelMr: 'ठिबक सिंचन (Drip)' },
+  { id: 'CANAL', label: 'Canal (Nira Left Bank Canal Flow)', labelMr: 'कालवा (नीरा डावा कालवा पट्टा)' },
   { id: 'BOREWELL', label: 'Borewell / Tube Well', labelMr: 'बोअरवेल / कूपनलिका' },
-  { id: 'CANAL', label: 'Canal Flow Water', labelMr: 'कालव्याचे पाणी' },
+  { id: 'OPEN_WELL', label: 'Open Well / Dug Well', labelMr: 'विहीर / बागायत' },
+  { id: 'RIVER_LIFT', label: 'River / Lift Irrigation System', labelMr: 'नदी / उपसा सिंचन योजना' },
+  { id: 'FARM_POND', label: 'Farm Pond / Rainwater Harvesting', labelMr: 'शेततळे / पावसाचे पाणी साठा' },
+  { id: 'RAINFED', label: 'Rainfed (Direct Monsoon / Scarcity)', labelMr: 'कोरडवाहू / पावसावर अवलंबून' },
+  { id: 'DRIP', label: 'Drip Irrigation (Micro-irrigation)', labelMr: 'ठिबक सिंचन (Micro-Drip)' },
   { id: 'SPRINKLER', label: 'Sprinkler System', labelMr: 'तुषार सिंचन (Sprinkler)' },
-  { id: 'OPEN_WELL', label: 'Open Well / Dug Well', labelMr: 'विहीर' },
-  { id: 'RIVER_LIFT', label: 'River / Lift Irrigation', labelMr: 'नदी / उपसा सिंचन' },
-  { id: 'FARM_POND', label: 'Farm Pond / Rainwater Harvesting', labelMr: 'शेततळे / पाणी साठा' },
-  { id: 'RAINFED', label: 'Rainfed (Direct Monsoon)', labelMr: 'कोरडवाहू / पावसावर अवलंबून' }
+  { id: 'FLOOD', label: 'Flood / Furrow Irrigation', labelMr: 'पाटपाणी / प्रवाह सिंचन' }
 ];
 
 const SOIL_TYPE_OPTIONS = [
+  { id: 'DEEP_BLACK_VERTISOL', label: 'Deep Black Vertisol (Heavy Black / Canal Belt)', labelMr: 'भारी काळी कसदार रेगूर जमीन (कॅनॉल पट्टा)' },
+  { id: 'MEDIUM_CLAY_LOAM', label: 'Medium Clay Loam (Well-Drained Loam / Shardanagar Belt)', labelMr: 'मध्यम काळी व पोयटा जमीन (बागायत पट्टा)' },
+  { id: 'SHALLOW_MURRUM', label: 'Shallow Basaltic Murrum (Light / Supa Scarcity Belt)', labelMr: 'उथळ मुरमाड जमीन (सुपा दुष्काळी पट्टा)' },
   { id: 'BLACK_COTTON', label: 'Black Cotton Soil (Regur / Heavy Clay)', labelMr: 'काळी कसदार माती (रेगूर)' },
   { id: 'ALLUVIAL', label: 'Alluvial Loam (Fertile River Plains)', labelMr: 'गाळाची जमीन (सुपीक)' },
   { id: 'RED_SOIL', label: 'Red Sandy / Lateritic Soil', labelMr: 'तांबडी / जांभी माती' },
@@ -62,18 +66,18 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
   const [farmData, setFarmData] = useState({
     name: 'My Primary Farm Plot',
     areaAcres: '4.0',
-    village: 'Baramati',
+    village: 'Malegaon',
     taluka: 'Baramati',
     district: 'Pune',
     state: 'Maharashtra',
-    latitude: '18.4875',
-    longitude: '74.1332',
-    waterSources: ['DRIP', 'BOREWELL'],
-    notes: 'Registered via AgriHub feature activation.'
+    latitude: '18.1519',
+    longitude: '74.5771',
+    waterSources: ['CANAL', 'DRIP'],
+    notes: 'Registered in Baramati agro-climatic zone (Canal Command / KVK Baramati).'
   });
 
   const [soilData, setSoilData] = useState({
-    soilType: 'BLACK_COTTON',
+    soilType: 'DEEP_BLACK_VERTISOL',
     ph: '7.2',
     nitrogen: '210',
     phosphorus: '28',
