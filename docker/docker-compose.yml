@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: agrihub_postgis
+    environment:
+      POSTGRES_USER: agrihub
+      POSTGRES_PASSWORD: agrihub_secure_password_2026
+      POSTGRES_DB: agrihub_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../supabase/migrations:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: agrihub_mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
