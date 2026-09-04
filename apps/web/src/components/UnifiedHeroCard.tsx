@@ -36,8 +36,8 @@ export const UnifiedHeroCard: React.FC<UnifiedActionProps> = ({ action }) => {
           ? '1px solid rgba(239, 68, 68, 0.4)'
           : '1px solid rgba(16, 185, 129, 0.4)',
         background: isHighPriority
-          ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(19, 28, 21, 0.95) 100%)'
-          : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(19, 28, 21, 0.95) 100%)',
+          ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, var(--bg-card) 100%)'
+          : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--bg-card) 100%)',
         position: 'relative',
         overflow: 'hidden',
         boxShadow: isHighPriority ? '0 0 35px -5px rgba(239, 68, 68, 0.25)' : 'var(--shadow-glow)'

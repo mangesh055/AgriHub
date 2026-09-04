@@ -86,8 +86,8 @@ export const RegisterRequestSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
   preferredLanguage: z.string().default('en'),
-  state: z.string().min(2),
-  district: z.string().min(2),
+  state: z.string().optional().default('Maharashtra'),
+  district: z.string().optional().default('Pune'),
   taluka: z.string().optional(),
   village: z.string().optional()
 });
@@ -132,7 +132,13 @@ export type GeoPolygon = z.infer<typeof GeoPolygonSchema>;
 export const CreateFarmRequestSchema = z.object({
   name: z.string().min(2, 'Farm name is required'),
   areaAcres: z.number().positive('Area must be greater than 0'),
-  irrigationSource: IrrigationSourceEnum,
+  irrigationSource: z.string().min(1, 'At least one water source is required'),
+  waterSources: z.array(z.string()).optional(),
+  village: z.string().optional(),
+  taluka: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional(),
+  locationName: z.string().optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   boundaryGeoJson: GeoPolygonSchema.optional(),
@@ -153,15 +159,19 @@ export type Farm = z.infer<typeof FarmSchema>;
 // ==========================================
 
 export const CreateSoilRecordSchema = z.object({
-  soilType: SoilTypeEnum,
-  ph: z.number().min(3).max(11),
+  soilType: z.string().min(1, 'Soil type is required'),
+  ph: z.number().min(0).max(14),
   nitrogen: z.number().min(0).describe('kg/ha or ppm'),
   phosphorus: z.number().min(0).describe('kg/ha or ppm'),
   potassium: z.number().min(0).describe('kg/ha or ppm'),
   organicCarbon: z.number().min(0).max(10).describe('percentage'),
   electricalConductivity: z.number().optional().describe('dS/m'),
   testDate: z.string(),
-  reportUrl: z.string().url().optional()
+  reportUrl: z.string().optional(),
+  reportName: z.string().optional(),
+  previousCrop: z.string().optional(),
+  previousYieldQuintals: z.number().optional(),
+  previousSeason: z.string().optional()
 });
 export type CreateSoilRecord = z.infer<typeof CreateSoilRecordSchema>;
 

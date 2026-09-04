@@ -28,6 +28,11 @@ export const api = {
   // Auth & Farmer
   getMe: () => apiRequest<any>('/auth/me'),
   getProfile: () => apiRequest<any>('/auth/profile'),
+  updateProfile: (data: any) =>
+    apiRequest<any>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
   login: (credentials: any) =>
     apiRequest<any>('/auth/login', {
       method: 'POST',
@@ -50,6 +55,11 @@ export const api = {
 
   // Soil & Crops
   getSoilRecords: (farmId: string) => apiRequest<any[]>(`/farms/${farmId}/soil-records`),
+  extractSoilReport: (payload: { fileName?: string; fileContent?: string; rawText?: string }) =>
+    apiRequest<any>('/farms/extract-soil-report', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
   getCropCycles: (farmId: string) => apiRequest<any[]>(`/farms/${farmId}/crop-cycles`),
   getCropRecommendations: (farmId: string, season: string = 'KHARIF') =>
     apiRequest<any>('/crops/recommendations', {
@@ -64,6 +74,10 @@ export const api = {
     apiRequest<any>(`/weather/forecast${farmId ? `?farmId=${farmId}` : ''}`),
   getWeatherAlerts: (farmId?: string) =>
     apiRequest<any>(`/weather/alerts${farmId ? `?farmId=${farmId}` : ''}`),
+  getComprehensiveWeather: (farmId?: string) =>
+    apiRequest<any>(`/weather/comprehensive${farmId ? `?farmId=${farmId}` : ''}`),
+  getAgronomicInputs: (farmId?: string) =>
+    apiRequest<any[]>(`/weather/agronomic-inputs${farmId ? `?farmId=${farmId}` : ''}`),
 
   // IoT & Irrigation
   getLatestTelemetry: (farmId?: string) =>

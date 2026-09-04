@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sprout, Phone, Lock, User, MapPin, ArrowRight } from 'lucide-react';
+import { Sprout, Phone, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     mobile: '',
-    password: '',
-    state: 'Maharashtra',
-    district: 'Pune',
-    taluka: 'Haveli',
-    village: 'Uruli Kanchan'
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,9 +18,24 @@ export const RegisterPage: React.FC = () => {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (formData.mobile.length !== 10 || !/^[6-9]\d{9}$/.test(formData.mobile)) {
+      setError('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await register(formData);
+      await register({
+        name: formData.name.trim(),
+        mobile: formData.mobile.trim(),
+        password: formData.password
+      });
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check your inputs.');
@@ -40,7 +51,7 @@ export const RegisterPage: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '28px',
+        padding: '24px',
         background: 'var(--bg-app)',
         position: 'relative'
       }}
@@ -49,154 +60,127 @@ export const RegisterPage: React.FC = () => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '520px',
+          maxWidth: '460px',
           padding: '36px',
-          border: '1px solid rgba(16, 185, 129, 0.3)'
+          border: '1px solid var(--border-active)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)'
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '50px',
-              height: '50px',
-              borderRadius: '14px',
+              width: '54px',
+              height: '54px',
+              borderRadius: '16px',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              marginBottom: '10px'
+              marginBottom: '12px',
+              boxShadow: '0 0 20px rgba(16, 185, 129, 0.35)'
             }}
           >
-            <Sprout size={28} color="#ffffff" />
+            <Sprout size={30} color="#ffffff" />
           </div>
-          <h2 style={{ fontSize: '1.7rem', fontWeight: 800 }}>Farmer Account Registration</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>
-            Create your account to map your farm plots and receive AI agricultural decisions.
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-heading)' }}>
+            Farmer Signup
+          </h2>
+          <p style={{ color: 'var(--text-main)', fontSize: '0.88rem', marginTop: '4px' }}>
+            Create your account with your name, mobile, and password.
           </p>
         </div>
 
         {error && (
           <div
             style={{
-              padding: '12px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
               background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
               color: '#f87171',
-              fontSize: '0.86rem',
-              marginBottom: '16px'
+              fontSize: '0.88rem',
+              fontWeight: 600,
+              marginBottom: '18px'
             }}
           >
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
-            <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Full Name
+            <label className="form-label">
+              Full Name <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Ramesh Patel"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Mobile Number
-              </label>
+            <div style={{ position: 'relative' }}>
+              <User size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
               <input
-                type="tel"
-                placeholder="10 digits"
-                value={formData.mobile}
-                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                type="text"
+                placeholder="e.g. Ramesh Patel"
+                className="form-input"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                maxLength={10}
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
+                style={{ paddingLeft: '40px' }}
               />
             </div>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Password
-              </label>
+          </div>
+
+          <div>
+            <label className="form-label">
+              Mobile Number (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Phone size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 9876543210"
+                className="form-input"
+                value={formData.mobile}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setFormData({ ...formData, mobile: cleaned });
+                }}
+                required
+                maxLength={10}
+                style={{ paddingLeft: '40px' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">
+              Password <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
               <input
                 type="password"
                 placeholder="Min 6 characters"
+                className="form-input"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 minLength={6}
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
+                style={{ paddingLeft: '40px' }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                State
-              </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                required
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                District
-              </label>
-              <input
-                type="text"
-                value={formData.district}
-                onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                required
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Taluka
-              </label>
-              <input
-                type="text"
-                value={formData.taluka}
-                onChange={(e) => setFormData({ ...formData, taluka: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Village
-              </label>
-              <input
-                type="text"
-                value={formData.village}
-                onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
-            <span>{loading ? 'Registering Account...' : 'Continue to Farm Setup'}</span>
-            <ArrowRight size={17} />
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ width: '100%', marginTop: '8px', padding: '13px', fontSize: '1rem', fontWeight: 700 }}
+            disabled={loading}
+          >
+            <span>{loading ? 'Creating Account...' : 'Create Farmer Account'}</span>
+            <ArrowRight size={18} />
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.86rem', color: 'var(--text-muted)' }}>
-          Already registered?{' '}
+        <div style={{ textAlign: 'center', marginTop: '22px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          Already have an account?{' '}
           <Link to="/login" style={{ color: '#10b981', fontWeight: 700 }}>
             Sign In
           </Link>

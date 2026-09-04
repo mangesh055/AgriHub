@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   Sparkles,
   Sliders,
-  DollarSign
+  DollarSign,
+  MapPin
 } from 'lucide-react';
 import { api } from '../api/client';
 import { UnifiedHeroCard } from '../components/UnifiedHeroCard';
@@ -20,10 +21,13 @@ import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { profile, hasFarm, refreshAuth } = useAuth();
+  const { profile, hasFarm, primaryFarm, refreshAuth } = useAuth();
   const [showFarmModal, setShowFarmModal] = useState(false);
   const [modalFeature, setModalFeature] = useState({ name: 'Farm Intelligence', desc: 'Please register your farm details.' });
   const [loading, setLoading] = useState(true);
+  const [farms, setFarms] = useState<any[]>([]);
+  const [selectedFarm, setSelectedFarm] = useState<any>(null);
+  const [soilRecord, setSoilRecord] = useState<any>(null);
   const [unifiedAction, setUnifiedAction] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
   const [telemetry, setTelemetry] = useState<any>(null);
@@ -32,41 +36,51 @@ export const DashboardPage: React.FC = () => {
   const [cropCycle, setCropCycle] = useState<any>(null);
   const [profit, setProfit] = useState<any>(null);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        setLoading(true);
-        const [
-          actionData,
-          weatherData,
-          telemetryData,
-          irrigationData,
-          marketData,
-          cyclesData,
-          profitData
-        ] = await Promise.all([
-          api.getUnifiedAction().catch(() => null),
-          api.getCurrentWeather().catch(() => null),
-          api.getLatestTelemetry().catch(() => null),
-          api.getIrrigationRecommendation().catch(() => null),
-          api.getMarketDecision('Soybean').catch(() => null),
-          api.getCropCycles('33333333-3333-3333-3333-333333333333').catch(() => []),
-          api.getProfitSummary('33333333-3333-3333-3333-333333333333').catch(() => null)
-        ]);
+  async function loadDashboardData() {
+    try {
+      setLoading(true);
+      const farmsData = await api.getFarms().catch(() => []);
+      setFarms(farmsData);
+      const active = farmsData.length > 0 ? farmsData[0] : null;
+      setSelectedFarm(active);
+      const activeFarmId = active?.id;
 
-        setUnifiedAction(actionData);
-        setWeather(weatherData);
-        setTelemetry(telemetryData);
-        setIrrigation(irrigationData);
-        setMarket(marketData);
-        setCropCycle(cyclesData[0] || null);
-        setProfit(profitData);
-      } catch (err) {
-        console.error('Error loading dashboard:', err);
-      } finally {
-        setLoading(false);
-      }
+      const [
+        actionData,
+        weatherData,
+        telemetryData,
+        irrigationData,
+        marketData,
+        cyclesData,
+        profitData,
+        soilsData
+      ] = await Promise.all([
+        activeFarmId ? api.getUnifiedAction(activeFarmId).catch(() => null) : Promise.resolve(null),
+        api.getCurrentWeather(activeFarmId).catch(() => null),
+        activeFarmId ? api.getLatestTelemetry(activeFarmId).catch(() => null) : Promise.resolve(null),
+        activeFarmId ? api.getIrrigationRecommendation(activeFarmId).catch(() => null) : Promise.resolve(null),
+        api.getMarketDecision('Soybean').catch(() => null),
+        activeFarmId ? api.getCropCycles(activeFarmId).catch(() => []) : Promise.resolve([]),
+        activeFarmId ? api.getProfitSummary(activeFarmId).catch(() => null) : Promise.resolve(null),
+        activeFarmId ? api.getSoilRecords(activeFarmId).catch(() => []) : Promise.resolve([])
+      ]);
+
+      setUnifiedAction(actionData);
+      setWeather(weatherData);
+      setTelemetry(telemetryData);
+      setIrrigation(irrigationData);
+      setMarket(marketData);
+      setCropCycle(cyclesData[0] || null);
+      setProfit(profitData);
+      setSoilRecord(soilsData[0] || null);
+    } catch (err) {
+      console.error('Error loading dashboard:', err);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     loadDashboardData();
   }, []);
 
@@ -82,14 +96,14 @@ export const DashboardPage: React.FC = () => {
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '28px' }}>
       {/* 0. Welcome Banner if No Farm Registered */}
-      {!hasFarm && (
+      {!hasFarm && !selectedFarm && (
         <section style={{ marginBottom: '24px' }}>
           <div
             className="glass-panel"
             style={{
               padding: '24px',
               border: '1px solid rgba(16, 185, 129, 0.4)',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(19, 28, 21, 0.95) 100%)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--bg-card) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -125,6 +139,96 @@ export const DashboardPage: React.FC = () => {
         </section>
       )}
 
+      {/* 0B. Dynamic My Farm Plot & Soil Health Summary Ribbon */}
+      {selectedFarm && (
+        <section style={{ marginBottom: '24px' }}>
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-card) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MapPin size={24} color="#34d399" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff' }}>
+                    {selectedFarm.name}
+                  </h3>
+                  <span className="badge badge-success">{selectedFarm.areaAcres} Acres</span>
+                  <span className="badge badge-info">{selectedFarm.irrigationSource} Irrigation</span>
+                  {farms.length > 1 && (
+                    <select
+                      value={selectedFarm.id}
+                      onChange={(e) => {
+                        const f = farms.find((farm) => farm.id === e.target.value);
+                        if (f) setSelectedFarm(f);
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: '#131e15',
+                        border: '1px solid var(--border-subtle)',
+                        color: '#34d399',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {farms.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name} ({f.areaAcres} Ac)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px' }}>
+                  Centroid: {Number(selectedFarm.latitude).toFixed(4)}°N, {Number(selectedFarm.longitude).toFixed(4)}°E • 
+                  Soil: <strong style={{ color: '#38bdf8' }}>{soilRecord?.soilType?.replace('_', ' ') || 'Black Cotton'} (pH {soilRecord?.ph || 7.2})</strong>
+                  {soilRecord ? ` • NPK: ${soilRecord.nitrogen}/${soilRecord.phosphorus}/${soilRecord.potassium}` : ' • Cadastral Plot Verified'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '0.84rem', padding: '8px 14px' }}
+                onClick={() => navigate('/farms')}
+              >
+                <MapPin size={15} color="#34d399" />
+                <span>My Farm GIS & Soil Details</span>
+                <ArrowUpRight size={14} />
+              </button>
+
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '0.84rem', padding: '8px 14px' }}
+                onClick={() => {
+                  setModalFeature({
+                    name: 'Register Additional Farm Plot',
+                    desc: 'Enter plot acreage, micro-irrigation method, and soil health parameters for a new parcel.'
+                  });
+                  setShowFarmModal(true);
+                }}
+              >
+                <span>+ Add Plot</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 1. Unified Directive Hero Banner */}
       {unifiedAction && (
         <section style={{ marginBottom: '28px' }}>
@@ -144,17 +248,19 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Soil & IoT Irrigation</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Node: ESP32-AGRI-PUNE-01</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  {selectedFarm ? `Node: ESP32-${selectedFarm.name.slice(0, 10).replace(/\s+/g, '-').toUpperCase()}` : 'No Sensor Node Linked'}
+                </span>
               </div>
             </div>
-            <span className={irrigation?.decision === 'IRRIGATE' ? 'badge badge-warning' : 'badge badge-success'}>
-              {irrigation?.decision || 'WAIT'}
+            <span className={!selectedFarm ? 'badge' : irrigation?.decision === 'IRRIGATE' ? 'badge badge-warning' : 'badge badge-success'}>
+              {selectedFarm ? (irrigation?.decision || 'STANDBY') : 'PENDING SETUP'}
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '-0.03em' }}>
-              {telemetry?.soilMoisturePct ?? 34}%
+            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: selectedFarm ? '#38bdf8' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
+              {selectedFarm && telemetry?.soilMoisturePct != null ? `${telemetry.soilMoisturePct}%` : '--%'}
             </span>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Volumetric Moisture</span>
           </div>
@@ -162,7 +268,7 @@ export const DashboardPage: React.FC = () => {
           <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '14px' }}>
             <div
               style={{
-                width: `${telemetry?.soilMoisturePct ?? 34}%`,
+                width: selectedFarm ? `${telemetry?.soilMoisturePct ?? 0}%` : '0%',
                 height: '100%',
                 background: 'linear-gradient(90deg, #38bdf8, #0284c7)',
                 borderRadius: '4px'
@@ -171,15 +277,27 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
-            {irrigation?.reason || 'Soil moisture is in optimal retention zone. Rain override in effect.'}
+            {selectedFarm
+              ? (irrigation?.reason || 'Soil moisture is in optimal retention zone.')
+              : 'Register your farm plot to link ESP32 capacitance soil sensors and get automated drip recommendations.'}
           </p>
 
           <button
             className="btn-secondary"
             style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
-            onClick={() => navigate('/irrigation')}
+            onClick={() => {
+              if (!selectedFarm) {
+                setModalFeature({
+                  name: 'IoT Soil & Irrigation Setup',
+                  desc: 'Register your farm plot and soil profile to enable automated sensor calibration and irrigation intelligence.'
+                });
+                setShowFarmModal(true);
+              } else {
+                navigate('/irrigation');
+              }
+            }}
           >
-            <span>Telemetry & Drip Controls</span>
+            <span>{selectedFarm ? 'Telemetry & Drip Controls' : 'Connect Farm & Sensors'}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>
@@ -193,25 +311,33 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Hyperlocal Weather</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Haveli, Pune (18.48°N, 74.13°E)</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  {selectedFarm
+                    ? `${selectedFarm.name} (${Number(selectedFarm.latitude).toFixed(2)}°N, ${Number(selectedFarm.longitude).toFixed(2)}°E)`
+                    : `${profile?.district || 'Regional'}, ${profile?.state || 'India'}`}
+                </span>
               </div>
             </div>
-            <span className="badge badge-danger">35mm RAIN ALERT</span>
+            {weather?.rainProbabilityPct && weather.rainProbabilityPct > 50 ? (
+              <span className="badge badge-danger">{weather.rainProbabilityPct}% RAIN ALERT</span>
+            ) : (
+              <span className="badge badge-success">FAVORABLE</span>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
             <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
-              {weather?.temperatureC ?? 29.4}°C
+              {weather?.temperatureC ?? 28.5}°C
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Humidity: {weather?.humidityPct ?? 76}%</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Humidity: {weather?.humidityPct ?? 72}%</span>
           </div>
 
-          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#ffffff', marginBottom: '8px' }}>
-            {weather?.weatherDescription || 'Monsoon conditions'}
+          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+            {weather?.weatherDescription || 'Agricultural Weather Forecast'}
           </p>
 
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.4 }}>
-            Wind: {weather?.windSpeedKph ?? 16} km/h • Rain Prob: {weather?.rainProbabilityPct ?? 65}% (Heavy showers within 24h)
+            Wind: {weather?.windSpeedKph ?? 14} km/h • Rain Prob: {weather?.rainProbabilityPct ?? 25}% • Hyperlocal grid
           </p>
 
           <button
@@ -232,26 +358,32 @@ export const DashboardPage: React.FC = () => {
                 <Sprout size={20} color="#34d399" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{cropCycle?.cropName || 'Soybean'}</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{cropCycle?.variety || 'JS-335'} • Sown June 20</span>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                  {cropCycle?.cropName || (selectedFarm ? 'No Sown Crop' : 'No Crop Cycle')}
+                </h3>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  {cropCycle ? `${cropCycle.variety || 'Active Variety'} • Sown ${cropCycle.sowingDate || 'Recently'}` : (selectedFarm ? 'No active sowing recorded' : 'Farm registration pending')}
+                </span>
               </div>
             </div>
-            <span className="badge badge-success">
-              {cropCycle?.currentStage || 'FLOWERING'}
+            <span className={cropCycle ? 'badge badge-success' : 'badge'}>
+              {cropCycle?.currentStage || (selectedFarm ? 'NOT SOWN' : 'UNREGISTERED')}
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#34d399', letterSpacing: '-0.03em' }}>
-              Day 76
+            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: cropCycle ? '#34d399' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
+              {cropCycle ? `Day ${cropCycle.daysSinceSowing || 45}` : 'Day --'}
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>of 95 Days to Harvest</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              {cropCycle ? `of ${cropCycle.expectedDurationDays || 90} Days to Harvest` : 'No active crop timeline'}
+            </span>
           </div>
 
           <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '14px' }}>
             <div
               style={{
-                width: '80%',
+                width: cropCycle ? `${Math.min(100, Math.round(((cropCycle.daysSinceSowing || 45) / (cropCycle.expectedDurationDays || 90)) * 100))}%` : '0%',
                 height: '100%',
                 background: 'linear-gradient(90deg, #10b981, #34d399)',
                 borderRadius: '4px'
@@ -260,15 +392,27 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
-            Pod formation starting. Critical moisture and pest scouting window. Projected harvest: Oct 5, 2026.
+            {cropCycle
+              ? `${cropCycle.currentStage} window. Critical scouting and nutrition phase.`
+              : 'Add your farm and select a Kharif/Rabi crop to monitor phenological growth stages and projected harvest dates.'}
           </p>
 
           <button
             className="btn-secondary"
             style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
-            onClick={() => navigate('/crop-health')}
+            onClick={() => {
+              if (!selectedFarm) {
+                setModalFeature({
+                  name: 'AI Crop Cycle Planning',
+                  desc: 'Register your farm plot acreage and soil type to receive personalized crop recommendations.'
+                });
+                setShowFarmModal(true);
+              } else {
+                navigate('/crop-plan');
+              }
+            }}
           >
-            <span>Scan Leaf for Disease</span>
+            <span>{cropCycle ? 'Scan Leaf for Disease' : 'Plan First Crop Cycle'}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>
@@ -282,11 +426,13 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Mandi & Economics</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Nearest: Pune & Baramati APMC</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Nearest: {profile?.district || 'Pune'} APMC
+                </span>
               </div>
             </div>
             <span className="badge badge-info">
-              {market?.action || 'HOLD FOR TARGET'}
+              {market?.action || 'REGIONAL APMC'}
             </span>
           </div>
 
@@ -294,15 +440,17 @@ export const DashboardPage: React.FC = () => {
             <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
               ₹{market?.currentModalPrice ?? 4850}
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>/ Quintal (Modal)</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>/ Quintal (Soybean Modal)</span>
           </div>
 
-          <p style={{ fontSize: '0.86rem', color: '#34d399', fontWeight: 600, marginBottom: '6px' }}>
+          <p style={{ fontSize: '0.86rem', color: '#10b981', fontWeight: 600, marginBottom: '6px' }}>
             Forecast 7D: ₹{market?.forecastPrice7Days ?? 5130}/Q (+₹280/Q gain)
           </p>
 
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
-            Projected Farm Profit: ₹{profit?.netProfitProjected?.toLocaleString('en-IN') ?? '1,28,000'} ({profit?.roiPercentage ?? 48}% ROI)
+            {selectedFarm && profit?.netProfitProjected != null
+              ? `Projected Farm Profit: ₹${profit.netProfitProjected.toLocaleString('en-IN')} (${profit.roiPercentage ?? 0}% ROI)`
+              : 'Projected Farm Profit: ₹0 (No farm plot registered yet)'}
           </p>
 
           <button
@@ -394,6 +542,7 @@ export const DashboardPage: React.FC = () => {
         onSuccess={() => {
           setShowFarmModal(false);
           refreshAuth();
+          loadDashboardData();
         }}
       />
     </div>

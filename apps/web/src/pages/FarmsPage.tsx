@@ -1,32 +1,53 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Layers, FileText, CheckCircle2 } from 'lucide-react';
+import { MapPin, Plus, Layers, FileText, CheckCircle2, Sprout, AlertCircle } from 'lucide-react';
 import { api } from '../api/client';
+import { FarmRequiredModal } from '../components/FarmRequiredModal';
+import { useAuth } from '../context/AuthContext';
 
 export const FarmsPage: React.FC = () => {
+  const { refreshAuth } = useAuth();
   const [farms, setFarms] = useState<any[]>([]);
   const [selectedFarm, setSelectedFarm] = useState<any>(null);
   const [soilRecords, setSoilRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+
+  async function loadFarms(preferredId?: string) {
+    try {
+      setLoading(true);
+      const data = await api.getFarms();
+      setFarms(data);
+      if (data.length > 0) {
+        const farmToSelect = preferredId
+          ? data.find((f) => f.id === preferredId) || data[0]
+          : data[0];
+        setSelectedFarm(farmToSelect);
+        const soils = await api.getSoilRecords(farmToSelect.id);
+        setSoilRecords(soils);
+      } else {
+        setSelectedFarm(null);
+        setSoilRecords([]);
+      }
+    } catch (err) {
+      console.error('Error fetching farms:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadFarms() {
-      try {
-        setLoading(true);
-        const data = await api.getFarms();
-        setFarms(data);
-        if (data.length > 0) {
-          setSelectedFarm(data[0]);
-          const soils = await api.getSoilRecords(data[0].id);
-          setSoilRecords(soils);
-        }
-      } catch (err) {
-        console.error('Error fetching farms:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadFarms();
   }, []);
+
+  const handleSelectFarm = async (f: any) => {
+    setSelectedFarm(f);
+    try {
+      const soils = await api.getSoilRecords(f.id);
+      setSoilRecords(soils);
+    } catch (err) {
+      setSoilRecords([]);
+    }
+  };
 
   const latestSoil = soilRecords[0];
 
@@ -39,7 +60,7 @@ export const FarmsPage: React.FC = () => {
             Manage farm boundaries, cadastral plots, soil test cards, and micro-irrigation systems.
           </p>
         </div>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowModal(true)}>
           <Plus size={18} />
           <span>Register New Farm Plot</span>
         </button>
@@ -55,29 +76,49 @@ export const FarmsPage: React.FC = () => {
               <span>Registered Holdings ({farms.length})</span>
             </h3>
 
-            {farms.map((f) => (
-              <div
-                key={f.id}
-                onClick={() => setSelectedFarm(f)}
-                style={{
-                  padding: '14px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: selectedFarm?.id === f.id ? '1px solid #10b981' : '1px solid var(--border-subtle)',
-                  background: selectedFarm?.id === f.id ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                  cursor: 'pointer',
-                  marginBottom: '10px',
-                  transition: 'var(--transition-smooth)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <h4 style={{ fontSize: '0.98rem', fontWeight: 700 }}>{f.name}</h4>
-                  <span className="badge badge-success">{f.areaAcres} Acres</span>
-                </div>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Irrigation: <strong>{f.irrigationSource}</strong> • GPS: {f.latitude.toFixed(4)}°N, {f.longitude.toFixed(4)}°E
+            {farms.length === 0 ? (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Sprout size={36} color="#34d399" style={{ margin: '0 auto 12px' }} />
+                <p style={{ fontWeight: 600, color: '#ffffff', marginBottom: '6px' }}>No Farm Holdings Registered</p>
+                <p style={{ fontSize: '0.82rem', marginBottom: '16px', lineHeight: 1.4 }}>
+                  Add your agricultural plot with soil health test metrics to unlock custom IoT and AI capabilities.
                 </p>
+                <button className="btn-primary" style={{ margin: '0 auto', fontSize: '0.85rem' }} onClick={() => setShowModal(true)}>
+                  <Plus size={16} />
+                  <span>Register Farm Plot</span>
+                </button>
               </div>
-            ))}
+            ) : (
+              farms.map((f) => (
+                <div
+                  key={f.id}
+                  onClick={() => handleSelectFarm(f)}
+                  style={{
+                    padding: '14px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: selectedFarm?.id === f.id ? '1px solid #10b981' : '1px solid var(--border-subtle)',
+                    background: selectedFarm?.id === f.id ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                    cursor: 'pointer',
+                    marginBottom: '10px',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <h4 style={{ fontSize: '0.98rem', fontWeight: 700 }}>{f.name}</h4>
+                    <span className="badge badge-success">{f.areaAcres} Acres</span>
+                  </div>
+                  {(f.village || f.district || f.locationName) && (
+                    <p style={{ fontSize: '0.84rem', color: '#10b981', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={13} />
+                      <span>{f.locationName || [f.village, f.taluka, f.district, f.state].filter(Boolean).join(', ')}</span>
+                    </p>
+                  )}
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Irrigation: <strong>{f.irrigationSource}</strong> • GPS: {Number(f.latitude).toFixed(4)}°N, {Number(f.longitude).toFixed(4)}°E
+                  </p>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Soil Health Card */}
@@ -91,9 +132,21 @@ export const FarmsPage: React.FC = () => {
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tested: {latestSoil.testDate}</span>
               </div>
 
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                Type: <strong>{latestSoil.soilType.replace('_', ' ')}</strong> (High water retention capacity)
-              </p>
+              <div style={{ marginBottom: '14px' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Classification: <strong>{latestSoil.soilType?.replace(/_/g, ' ') || 'BLACK COTTON'}</strong>
+                </p>
+                {(latestSoil.previousCrop || latestSoil.previousYieldQuintals) && (
+                  <p style={{ fontSize: '0.82rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🌱 Previous: <strong>{latestSoil.previousCrop || 'Standard Crop'}</strong> ({latestSoil.previousYieldQuintals || 0} Qt/Acre - {latestSoil.previousSeason || 'Kharif'})</span>
+                  </p>
+                )}
+                {latestSoil.reportName && (
+                  <p style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px' }}>
+                    📄 Lab Report: <strong>{latestSoil.reportName}</strong>
+                  </p>
+                )}
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '14px' }}>
                 <div style={{ padding: '10px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
@@ -127,20 +180,32 @@ export const FarmsPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {!latestSoil && selectedFarm && (
+            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center' }}>
+              <FileText size={28} color="#38bdf8" style={{ margin: '0 auto 8px' }} />
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '4px' }}>No Soil Test Record</h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Using regional soil benchmarks for this plot.</p>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Interactive Map & Boundary GeoJSON Visualizer */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>GIS Cadastral Boundary & Satellite View</h3>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                {selectedFarm?.name || 'GIS Cadastral Boundary & Satellite View'}
+              </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                Plot ID: {selectedFarm?.id || 'N/A'} • Centroid: {selectedFarm?.latitude}°N, {selectedFarm?.longitude}°E
+                Plot ID: {selectedFarm?.id ? `${selectedFarm.id.slice(0, 13)}...` : 'N/A'} • Centroid: {Number(selectedFarm?.latitude || 18.4875).toFixed(4)}°N, {Number(selectedFarm?.longitude || 74.1332).toFixed(4)}°E
               </p>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <span className="badge badge-info">PostGIS ST_Polygon</span>
-              <span className="badge badge-success">4.50 Hectares Verified</span>
+              <span className="badge badge-success">
+                {selectedFarm ? `${selectedFarm.areaAcres} Acres Verified` : 'No Plot Selected'}
+              </span>
             </div>
           </div>
 
@@ -185,7 +250,7 @@ export const FarmsPage: React.FC = () => {
               {/* Centroid Tag */}
               <circle cx="295" cy="198" r="8" fill="#38bdf8" />
               <text x="310" y="202" fill="#ffffff" fontSize="12" fontWeight="700">
-                IoT Gateway Node #01 (34% Moist)
+                {selectedFarm ? `${selectedFarm.name} IoT Node` : 'IoT Gateway Node #01'}
               </text>
             </svg>
 
@@ -218,6 +283,19 @@ export const FarmsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Just-In-Time Farm Registration Modal */}
+      <FarmRequiredModal
+        isOpen={showModal}
+        featureName="Farm Registration"
+        featureDescription="Register a new agricultural plot to track cadastral boundaries, soil NPK profiles, and automated irrigation schedules."
+        onCancel={() => setShowModal(false)}
+        onSuccess={() => {
+          setShowModal(false);
+          refreshAuth();
+          loadFarms();
+        }}
+      />
     </div>
   );
 };

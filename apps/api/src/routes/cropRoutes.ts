@@ -2,15 +2,17 @@ import { Router, Request, Response } from 'express';
 import { CropRecommendationService } from '../services/cropRecommendationService.js';
 import { DiseaseService } from '../services/diseaseService.js';
 import { store } from '../services/storage.js';
+import { db } from '../services/db.js';
 
 export const cropRouter = Router();
 
 // Crop Recommendation
-cropRouter.post('/recommendations', (req: Request, res: Response) => {
+cropRouter.post('/recommendations', async (req: Request, res: Response) => {
   const { farmId, season } = req.body;
-  const farm = store.farms.get(farmId);
-  const soilRecords = store.soilRecords.get(farmId) || [];
-  const latestSoil = soilRecords[0];
+  const farms = await db.getFarms();
+  const farm = farms.find((f) => f.id === farmId) || store.farms.get(farmId);
+  const soilRecords = await db.getSoilRecords(farmId);
+  const latestSoil = soilRecords[0] || (store.soilRecords.get(farmId) || [])[0];
 
   if (!farm || !latestSoil) {
     return res.status(400).json({

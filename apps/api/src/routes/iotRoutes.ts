@@ -50,7 +50,10 @@ iotRouter.post('/simulate', async (req: Request, res: Response) => {
 
 // Latest sensor reading
 iotRouter.get('/latest', async (req: Request, res: Response) => {
-  const farmId = (req.query.farmId as string) || Array.from(store.farms.keys())[0];
+  const farmId = req.query.farmId as string;
+  if (!farmId || farmId === 'undefined' || farmId === 'null') {
+    return res.status(404).json({ error: 'No farm ID provided' });
+  }
   const latest = await db.getLatestTelemetry(farmId);
   if (!latest) {
     return res.status(404).json({ error: 'No sensor telemetry recorded yet' });
@@ -60,14 +63,20 @@ iotRouter.get('/latest', async (req: Request, res: Response) => {
 
 // Sensor history for charts
 iotRouter.get('/history', (req: Request, res: Response) => {
-  const farmId = (req.query.farmId as string) || Array.from(store.farms.keys())[0];
+  const farmId = req.query.farmId as string;
+  if (!farmId || farmId === 'undefined' || farmId === 'null') {
+    return res.json([]);
+  }
   const list = store.telemetry.get(farmId) || [];
   return res.json(list);
 });
 
 // Smart Irrigation Decision
 iotRouter.get('/irrigation-recommendation', (req: Request, res: Response) => {
-  const farmId = (req.query.farmId as string) || Array.from(store.farms.keys())[0];
+  const farmId = req.query.farmId as string;
+  if (!farmId || farmId === 'undefined' || farmId === 'null') {
+    return res.json(null);
+  }
   const farm = store.farms.get(farmId);
   const cycles = store.cropCycles.get(farmId) || [];
   const activeCycle = cycles.find((c) => c.status === 'ACTIVE') || cycles[0];

@@ -21,6 +21,7 @@ interface AuthContextType {
   profile: Profile | null;
   token: string | null;
   hasFarm: boolean;
+  primaryFarm: any | null;
   isLoading: boolean;
   login: (credentials: { mobile: string; password: string }) => Promise<void>;
   register: (data: any) => Promise<void>;
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('agrihub_token'));
   const [hasFarm, setHasFarm] = useState<boolean>(false);
+  const [primaryFarm, setPrimaryFarm] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   async function checkAuth(authToken: string) {
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       setProfile(data.profile);
       setHasFarm(data.hasFarm);
+      setPrimaryFarm(data.primaryFarm || null);
     } catch (err) {
       console.error('Auth verification failed:', err);
       logout();
@@ -81,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setHasFarm(false);
+    setPrimaryFarm(null);
     setIsLoading(false);
   };
 
@@ -101,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         token,
         hasFarm,
+        primaryFarm,
         isLoading,
         login,
         register,
