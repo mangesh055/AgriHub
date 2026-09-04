@@ -124,7 +124,21 @@ export const DICTIONARY: Translations = {
   saveChanges: { en: 'Save Changes', mr: 'माहिती जतन करा' },
   savingChanges: { en: 'Saving...', mr: 'जतन होत आहे...' },
   cancel: { en: 'Cancel', mr: 'रद्द करा' },
-  profileUpdated: { en: 'Profile successfully updated!', mr: 'प्रोफाइल यशस्वीरित्या अद्यतनित झाले!' }
+  profileUpdated: { en: 'Profile successfully updated!', mr: 'प्रोफाइल यशस्वीरित्या अद्यतनित झाले!' },
+
+  // Crop Cycle Initiation
+  initiateCycle: { en: 'Initiate Crop Cycle', mr: 'पीक चक्र सुरू करा' },
+  activeInField: { en: 'Active in Field', mr: 'शेतात सध्या सक्रिय' },
+  initiateModalTitle: { en: 'Initiate Field Crop Sowing Cycle', mr: 'शेतात पीक पेरणी चक्र सुरू करा' },
+  confirmInitiate: { en: 'Confirm & Start Crop Cycle', mr: 'खात्री करा व पीक चक्र सुरू करा' },
+  initiating: { en: 'Initiating...', mr: 'सुरू होत आहे...' },
+  sowingDateLabel: { en: 'Sowing Date', mr: 'पेरणीची तारीख' },
+  expectedHarvestLabel: { en: 'Expected Harvest Date', mr: 'अपेक्षित काढणी तारीख' },
+  cropVarietyLabel: { en: 'Seed Variety / Cultivar', mr: 'बियाणे वाण' },
+  cropCycleSuccess: { en: 'Crop cycle successfully initiated!', mr: 'पीक चक्र यशस्वीरित्या सुरू झाले!' },
+  currentlyActiveCycle: { en: 'Currently Active Crop Cycle in Field', mr: 'शेतामध्ये सध्या चालू असलेले पीक चक्र' },
+  scanLeafHealth: { en: 'Scan Leaf for Disease', mr: 'रोगासाठी पान स्कॅन करा' },
+  iotIrrigation: { en: 'IoT Irrigation Guidance', mr: 'IoT सिंचन सल्ला' }
 };
 
 interface LanguageContextType {

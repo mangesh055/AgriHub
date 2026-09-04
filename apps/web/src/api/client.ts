@@ -61,6 +61,11 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   getCropCycles: (farmId: string) => apiRequest<any[]>(`/farms/${farmId}/crop-cycles`),
+  createCropCycle: (farmId: string, payload: any) =>
+    apiRequest<any>(`/farms/${farmId}/crop-cycles`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
   getCropRecommendations: (farmId: string, season: string = 'KHARIF') =>
     apiRequest<any>('/crops/recommendations', {
       method: 'POST',
