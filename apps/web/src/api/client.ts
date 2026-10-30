@@ -1,4 +1,23 @@
-export const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api/v1';
+const getBaseUrl = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/$/, '');
+  }
+
+  // When running on a deployed website (e.g. Vercel HTTPS), use relative API path:
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    return '/api/v1';
+  }
+
+  // Local development fallback
+  return 'http://localhost:4000/api/v1';
+};
+
+export const API_BASE_URL = getBaseUrl();
 
 export async function apiRequest<T>(
   endpoint: string,

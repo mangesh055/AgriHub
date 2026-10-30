@@ -1,9 +1,17 @@
 {
-  "buildCommand": "npm run build:contracts && npm run build:web",
+  "buildCommand": "npm run build:contracts && npm run build:api && npm run build:web",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

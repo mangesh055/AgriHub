@@ -45,8 +45,13 @@ app.use('/api/v1/unified', unifiedRouter);
 // Centralized Error Handler
 app.use(errorHandler);
 
-// Start Server
-app.listen(ENV.PORT, () => {
-  console.log(`🌾 AgriHub API Server running on port ${ENV.PORT} [${ENV.NODE_ENV}]`);
-  console.log(`👉 Health check: http://localhost:${ENV.PORT}/health`);
-});
+// Start Server if run directly
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  app.listen(ENV.PORT, () => {
+    console.log(`🌾 AgriHub API Server running on port ${ENV.PORT} [${ENV.NODE_ENV}]`);
+    console.log(`👉 Health check: http://localhost:${ENV.PORT}/health`);
+  });
+}
+
+export default app;
+export { app };
