@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   MapPin,
   Plus,
@@ -19,11 +19,10 @@ import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
-import { Farm2DCadastreMap } from '../components/Farm2DCadastreMap';
+import { Farm2DCadastreMap, generateDynamicUlpin } from '../components/Farm2DCadastreMap';
 
 export const FarmsPage: React.FC = () => {
   const { refreshAuth, profile, user } = useAuth();
-  const farmerName = profile?.name || 'Om';
   const [mapViewMode, setMapViewMode] = useState<'cadastre2d' | 'editor'>('cadastre2d');
   const [farms, setFarms] = useState<any[]>([]);
   const [selectedFarm, setSelectedFarm] = useState<any>(null);
@@ -33,6 +32,33 @@ export const FarmsPage: React.FC = () => {
   const [ndviVisible, setNdviVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Dynamic owner name resolution without hardcoded fallback
+  const effectiveOwnerName = useMemo(() => {
+    if (selectedFarm?.coOwners && selectedFarm.coOwners.length > 0) {
+      const managing = selectedFarm.coOwners.find((c: any) => c.isManagingCultivator);
+      if (managing?.name?.trim()) return managing.name.trim();
+      if (selectedFarm.coOwners[0]?.name?.trim()) return selectedFarm.coOwners[0].name.trim();
+    }
+    if (selectedFarm?.farmerName?.trim()) return selectedFarm.farmerName.trim();
+    if (profile?.name && profile.name.trim() && profile.name.trim() !== 'Om') return profile.name.trim();
+    if (user?.mobile) return `Farmer (${user.mobile})`;
+    return 'Registered Farmer';
+  }, [selectedFarm, profile, user]);
+
+  const dynamicUlpin = useMemo(() => {
+    if (!selectedFarm) return '';
+    return generateDynamicUlpin(selectedFarm);
+  }, [selectedFarm]);
+
+  // Sync selected farm to localStorage for 3D Cadastre view
+  useEffect(() => {
+    if (selectedFarm) {
+      try {
+        localStorage.setItem('agrihub_active_farm', JSON.stringify(selectedFarm));
+      } catch (_) {}
+    }
+  }, [selectedFarm]);
 
   async function loadFarms(preferredId?: string) {
     try {
@@ -388,10 +414,17 @@ export const FarmsPage: React.FC = () => {
                   center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
                   polygonPoints={parseBoundaryPoints(selectedFarm)}
                   height={440}
-                  ownerName={farmerName}
+                  ownerName={effectiveOwnerName}
+                  ulpin={dynamicUlpin}
                   farmName={selectedFarm.name}
                   areaAcres={Number(selectedFarm.areaAcres)}
-                  gatNumber={selectedFarm.gatNumber || 'Gat 142/A'}
+                  gatNumber={selectedFarm.gatNumber || 'Gat 124/A'}
+                  village={selectedFarm.village}
+                  taluka={selectedFarm.taluka}
+                  district={selectedFarm.district}
+                  state={selectedFarm.state}
+                  irrigationSource={selectedFarm.irrigationSource}
+                  coOwners={selectedFarm.coOwners}
                 />
               ) : (
                 <FarmMapEditor
@@ -649,17 +682,28 @@ export const FarmsPage: React.FC = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <Farm2DCadastreMap
-                center={{ lat: 18.5034, lng: 73.8203 }}
+                center={{ lat: 18.4875, lng: 74.1332 }}
                 height={460}
-                ownerName={farmerName}
-                ulpin="MH-PN-KT-P125-B02-F05-U501"
-                farmName="Kothrud Agro-Cadastre Complex & Precision Plot"
-                areaAcres={4.85}
-                gatNumber="Gat 142/A"
+                ownerName={effectiveOwnerName}
+                ulpin={generateDynamicUlpin({
+                  state: profile?.state || 'Maharashtra',
+                  district: profile?.district || 'Pune',
+                  taluka: profile?.taluka || 'Baramati',
+                  village: profile?.village || 'Malegaon',
+                  gatNumber: 'Gat 124/A',
+                  areaAcres: 4.0
+                })}
+                farmName={profile?.name ? `${profile.name}'s Agricultural Holding` : 'Primary Farmland Plot'}
+                areaAcres={4.0}
+                gatNumber="Gat 124/A"
+                village={profile?.village || 'Malegaon'}
+                taluka={profile?.taluka || 'Baramati'}
+                district={profile?.district || 'Pune'}
+                state={profile?.state || 'Maharashtra'}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Showing 2D Cadastral Spatial representation for <strong style={{ color: '#38bdf8' }}>{farmerName}</strong>. Register your holding to bind custom survey bounds.
+                  Showing 2D Cadastral Spatial representation for <strong style={{ color: '#38bdf8' }}>{effectiveOwnerName}</strong>. Register your holding to bind custom survey bounds.
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn-primary" style={{ fontSize: '0.84rem' }} onClick={() => setShowModal(true)}>

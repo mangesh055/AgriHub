@@ -329,14 +329,20 @@ export const SAMPLE_PARCELS: Record<string, ParcelData> = {
   }
 };
 
-interface Farm3DViewerProps {
+export interface Farm3DViewerProps {
+  farm?: any;
   initialOwnerName?: string;
   initialFarmName?: string;
+  initialGatNo?: string;
+  initialUlpin?: string;
 }
 
 export const Farm3DViewer: React.FC<Farm3DViewerProps> = ({
+  farm,
   initialOwnerName,
-  initialFarmName
+  initialFarmName,
+  initialGatNo,
+  initialUlpin
 }) => {
   // Filters state
   const [selectedCity, setSelectedCity] = useState('Pune');
@@ -414,16 +420,41 @@ export const Farm3DViewer: React.FC<Farm3DViewerProps> = ({
     );
   }, [activeParcel, selectedStratumId]);
 
-  // Handle owner name override if passed from parent
+  // Handle dynamic farm data and owner overrides
   useEffect(() => {
-    if (initialOwnerName) {
-      setActiveParcel((prev) => ({
+    setActiveParcel((prev) => {
+      const dynamicOwner = (initialOwnerName && initialOwnerName !== 'Rahul Deshmukh')
+        ? initialOwnerName
+        : (farm?.coOwners?.find((c: any) => c.isManagingCultivator)?.name || farm?.coOwners?.[0]?.name || farm?.farmerName || prev.ownerName);
+
+      const dynamicName = initialFarmName || farm?.name || prev.propertyName;
+      const dynamicGat = initialGatNo || farm?.gatNumber || prev.gatNo;
+      const dynamicUlpin = initialUlpin || prev.ulpin;
+      const dynamicAcres = farm?.areaAcres ? Number(farm.areaAcres) : prev.totalAreaAcres;
+      const dynamicSqFt = dynamicAcres ? Math.round(dynamicAcres * 43560) : prev.totalAreaSqFt;
+      const dynamicLat = farm?.latitude ? Number(farm.latitude) : prev.coordinates.lat;
+      const dynamicLng = farm?.longitude ? Number(farm.longitude) : prev.coordinates.lng;
+      const dynamicCity = farm?.district || farm?.taluka || prev.city;
+      const dynamicZone = farm?.village || farm?.taluka || prev.zone;
+
+      return {
         ...prev,
-        ownerName: initialOwnerName,
-        propertyName: initialFarmName || prev.propertyName
-      }));
-    }
-  }, [initialOwnerName, initialFarmName]);
+        ownerName: dynamicOwner,
+        propertyName: dynamicName,
+        gatNo: dynamicGat,
+        ulpin: dynamicUlpin,
+        totalAreaAcres: dynamicAcres,
+        totalAreaSqFt: dynamicSqFt,
+        city: dynamicCity,
+        zone: dynamicZone,
+        coordinates: {
+          ...prev.coordinates,
+          lat: dynamicLat,
+          lng: dynamicLng
+        }
+      };
+    });
+  }, [farm, initialOwnerName, initialFarmName, initialGatNo, initialUlpin]);
 
   // Copy ULPIN to clipboard
   const handleCopyULPIN = () => {
@@ -984,6 +1015,9 @@ export const Farm3DViewer: React.FC<Farm3DViewerProps> = ({
     leafletPolygonRef.current = poly;
 
     // 2. Add Surrounding Neighboring Cadastre Plots
+    const numMatch = (activeParcel.gatNo || '').match(/\d+/);
+    const baseGatNum = numMatch ? parseInt(numMatch[0], 10) : 124;
+
     const neighborNorth: [number, number][] = [
       [lat + dLat * 1.05, lng - dLng * 1.1],
       [lat + dLat * 1.05, lng + dLng * 1.1],
@@ -995,8 +1029,9 @@ export const Farm3DViewer: React.FC<Farm3DViewerProps> = ({
       weight: 1.5,
       fillColor: '#0284c7',
       fillOpacity: 0.12
-    }).bindTooltip('Plot P-124 (Owner B)', { permanent: false }).addTo(map);
+    }).bindTooltip(`शेजारील गट क्र. ${baseGatNum + 1} (Adjoining Gat ${baseGatNum + 1})`, { permanent: false }).addTo(map);
 
+    const eastGatNum = baseGatNum > 1 ? baseGatNum - 1 : baseGatNum + 2;
     const neighborEast: [number, number][] = [
       [lat - dLat * 0.8, lng + dLng * 1.15],
       [lat + dLat * 0.9, lng + dLng * 1.15],
@@ -1008,25 +1043,29 @@ export const Farm3DViewer: React.FC<Farm3DViewerProps> = ({
       weight: 1.5,
       fillColor: '#f59e0b',
       fillOpacity: 0.12
-    }).bindTooltip('Plot P-126 (Owner C)', { permanent: false }).addTo(map);
+    }).bindTooltip(`शेजारील गट क्र. ${eastGatNum} (Adjoining Gat ${eastGatNum})`, { permanent: false }).addTo(map);
 
-    // 3. Add DP Road Corridor Line
+    // 3. Add Dynamic Farm Road Corridor Line
     const dpRoadLine: [number, number][] = [
       [lat - dLat * 1.4, lng - dLng * 2.8],
       [lat - dLat * 1.35, lng + dLng * 2.8]
     ];
+    const roadLabel = activeParcel.zone
+      ? `${activeParcel.zone} शेत रस्ता / पाणंद (Farm Approach Road)`
+      : 'शेत रस्ता / पाणंद रस्ता (Farm Cadastre Access Road)';
+
     L.polyline(dpRoadLine, {
-      color: '#64748b',
-      weight: 7,
-      opacity: 0.75,
-      dashArray: '12 8'
-    }).bindTooltip('DP Road (24m Corridor)', { permanent: true, direction: 'bottom' }).addTo(map);
+      color: '#ca8a04',
+      weight: 6,
+      opacity: 0.8,
+      dashArray: '10 8'
+    }).bindTooltip(roadLabel, { permanent: true, direction: 'bottom' }).addTo(map);
 
     // 4. Custom Pulsing ULPIN Marker
     const pinHtml = `
       <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer;">
         <div style="background: rgba(12, 21, 36, 0.95); border: 2px solid #0284c7; border-radius: 8px; padding: 7px 14px; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.6); text-align: center; color: white; white-space: nowrap; backdrop-filter: blur(8px);">
-          <div style="font-size: 9px; font-weight: 800; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase;">ULPIN PARCEL</div>
+          <div style="font-size: 9px; font-weight: 800; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase;">BHU-AADHAAR ULPIN</div>
           <div style="font-size: 11px; font-weight: 700; font-family: monospace; color: #ffffff; margin-top: 1px;">${activeParcel.ulpin}</div>
           <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Owner: <strong style="color: #38bdf8;">${activeParcel.ownerName}</strong></div>
         </div>

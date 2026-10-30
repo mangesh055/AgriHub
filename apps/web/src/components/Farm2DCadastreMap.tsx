@@ -21,17 +21,89 @@ export interface Farm2DCadastreMapProps {
   areaAcres?: number;
   gatNumber?: string;
   polygonPoints?: { lat: number; lng: number }[];
+  village?: string;
+  taluka?: string;
+  district?: string;
+  state?: string;
+  irrigationSource?: string;
+  coOwners?: Array<{
+    id?: string;
+    name: string;
+    relationship?: string;
+    shareAcres?: number | string;
+    percentage?: number;
+    surveyHissaNo?: string;
+    isManagingCultivator?: boolean;
+    assignedCrop?: string;
+  }>;
+}
+
+export function generateDynamicUlpin(farm: {
+  id?: string;
+  state?: string;
+  district?: string;
+  taluka?: string;
+  village?: string;
+  gatNumber?: string;
+  areaAcres?: number | string;
+  latitude?: number | string;
+  longitude?: number | string;
+}): string {
+  if (!farm) return 'MH-PN-HV-G124-A40-0001';
+
+  const rawState = (farm.state || 'Maharashtra').trim().toUpperCase();
+  const stateCode = rawState.slice(0, 2) || 'MH';
+
+  const rawDistrict = (farm.district || 'Pune').trim().toUpperCase();
+  const distCode = rawDistrict.slice(0, 2) || 'PN';
+
+  const rawTaluka = (farm.taluka || farm.village || 'Haveli').trim().toUpperCase();
+  const talCode = rawTaluka.slice(0, 2) || 'HV';
+
+  let gatCode = 'G124';
+  if (farm.gatNumber) {
+    const numMatch = farm.gatNumber.match(/\d+/);
+    if (numMatch) {
+      gatCode = `G${numMatch[0]}`;
+    } else {
+      const alphaNum = farm.gatNumber.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5);
+      if (alphaNum) gatCode = `G${alphaNum}`;
+    }
+  }
+
+  const numAcres = Number(farm.areaAcres) || 4.0;
+  const areaCode = `A${Math.round(numAcres * 10)}`;
+
+  let idHash = '0001';
+  if (farm.id) {
+    const cleaned = farm.id.replace(/[^a-zA-Z0-9]/g, '');
+    if (cleaned.length >= 4) {
+      idHash = cleaned.slice(-4).toUpperCase();
+    }
+  } else if (farm.latitude && farm.longitude) {
+    const latCode = Math.abs(Math.round(Number(farm.latitude) * 100)) % 100;
+    const lngCode = Math.abs(Math.round(Number(farm.longitude) * 100)) % 100;
+    idHash = `U${latCode}${lngCode}`;
+  }
+
+  return `${stateCode}-${distCode}-${talCode}-${gatCode}-${areaCode}-${idHash}`;
 }
 
 export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
   center = { lat: 18.5034, lng: 73.8203 },
   height = 460,
-  ownerName = 'Om',
-  ulpin = 'MH-PN-KT-P125-B02-F05-U501',
-  farmName = 'Kothrud Agro-Cadastre Complex & Precision Farm',
-  areaAcres = 4.85,
-  gatNumber = 'Gat 142/A',
-  polygonPoints
+  ownerName,
+  ulpin,
+  farmName = 'Primary Precision Farm Plot',
+  areaAcres = 4.0,
+  gatNumber = 'Gat 124/A',
+  polygonPoints,
+  village,
+  taluka,
+  district,
+  state,
+  irrigationSource,
+  coOwners
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -48,6 +120,33 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
 
   const neighborLayersRef = useRef<L.LayerGroup | null>(null);
   const dpRoadLayerRef = useRef<L.Polyline | null>(null);
+
+  // Compute dynamic owner name without hardcoded fallbacks
+  const effectiveOwner = (ownerName && ownerName.trim() && ownerName.trim() !== 'Om')
+    ? ownerName.trim()
+    : coOwners?.find((c) => c.isManagingCultivator)?.name
+    || coOwners?.[0]?.name
+    || 'Registered Farmer';
+
+  // Compute dynamic ULPIN
+  const effectiveUlpin = ulpin || generateDynamicUlpin({
+    gatNumber,
+    areaAcres,
+    village,
+    taluka,
+    district,
+    state,
+    latitude: center.lat,
+    longitude: center.lng
+  });
+
+  // Dynamic road or waterway access label
+  const isCanal = (irrigationSource || '').toUpperCase().includes('CANAL');
+  const roadLabel = isCanal
+    ? 'कालवा पट्टा व शेत रस्ता (Canal Waterway & Farm Road)'
+    : village
+      ? `${village} शेत रस्ता / पाणंद (Farm Approach Road)`
+      : 'शेत रस्ता / पाणंद रस्ता (Farm Cadastre Access Road)';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -108,43 +207,102 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     }).addTo(map);
     polygonRef.current = poly;
 
-    // 3. Surrounding Neighboring Cadastre Plots
+    // 3. Dynamic Neighboring Cadastre Plots / Co-Owner Sub-Plots
     if (neighborLayersRef.current) {
       neighborLayersRef.current.clearLayers();
 
       const dLat = 0.00065;
       const dLng = 0.00085;
+      const numMatch = (gatNumber || '').match(/\d+/);
+      const baseGatNum = numMatch ? parseInt(numMatch[0], 10) : 124;
 
-      // Plot P-124 (North, Blue)
+      const otherCoOwners = (coOwners || []).filter((o) => !o.isManagingCultivator && o.name !== effectiveOwner);
+      const secondaryOwner1 = otherCoOwners[0] || (coOwners && coOwners.length > 1 ? coOwners[1] : null);
+      const secondaryOwner2 = otherCoOwners[1] || (coOwners && coOwners.length > 2 ? coOwners[2] : null);
+
+      // North Parcel
       const neighborNorth: [number, number][] = [
         [lat + dLat * 1.05, lng - dLng * 1.1],
         [lat + dLat * 1.05, lng + dLng * 1.1],
         [lat + dLat * 2.1, lng + dLng * 1.05],
         [lat + dLat * 2.1, lng - dLng * 1.05]
       ];
+      const northTitle = secondaryOwner1
+        ? `Hissa ${secondaryOwner1.surveyHissaNo || `${baseGatNum}/2`}: ${secondaryOwner1.name} (${secondaryOwner1.shareAcres || ''} Ac)`
+        : `शेजारील गट क्र. ${baseGatNum + 1} (Adjoining Farm Gat ${baseGatNum + 1})`;
+
+      const northPopup = secondaryOwner1
+        ? `<div style="font-family: Inter, sans-serif; padding: 4px; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase;">७/१२ सहहिस्सा (Co-Owner Parcel)</div>
+            <div style="font-size: 13px; font-weight: 800; margin: 3px 0; color: #0f172a;">${secondaryOwner1.name} (${secondaryOwner1.relationship || 'Co-Owner'})</div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 4px 0;" />
+            <div style="font-size: 11px; line-height: 1.5; color: #334155;">
+              <div><strong>Survey Hissa:</strong> ${secondaryOwner1.surveyHissaNo || `${baseGatNum}/2`}</div>
+              <div><strong>Holding Area:</strong> ${secondaryOwner1.shareAcres} Acres (${secondaryOwner1.percentage || ''}%)</div>
+              ${secondaryOwner1.assignedCrop ? `<div><strong>Crop:</strong> <span style="color: #16a34a; font-weight: 700;">${secondaryOwner1.assignedCrop}</span></div>` : ''}
+              <div><strong>Status:</strong> <span style="color: #10b981; font-weight: 700;">Joint 7/12 Co-Titled</span></div>
+            </div>
+          </div>`
+        : `<div style="font-family: Inter, sans-serif; padding: 4px; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase;">शेजारील भू-खंड (North Boundary)</div>
+            <div style="font-size: 13px; font-weight: 800; margin: 3px 0; color: #0f172a;">Gat No. ${baseGatNum + 1}</div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 4px 0;" />
+            <div style="font-size: 11px; line-height: 1.5; color: #334155;">
+              <div><strong>Cadastre:</strong> Agricultural Farmland (कृषी जमीन)</div>
+              <div><strong>Village Cadastre:</strong> ${village || 'Adjoining Sector'} गाव नकाशा</div>
+            </div>
+          </div>`;
+
       L.polygon(neighborNorth, {
         color: '#0284c7',
-        weight: 1.5,
+        weight: 1.8,
         fillColor: '#0284c7',
-        fillOpacity: 0.14
-      }).bindTooltip('Plot P-124 (Owner B)', { permanent: false }).addTo(neighborLayersRef.current);
+        fillOpacity: 0.16
+      }).bindTooltip(northTitle, { permanent: false }).bindPopup(northPopup).addTo(neighborLayersRef.current);
 
-      // Plot P-126 (East, Orange)
+      // East Parcel
       const neighborEast: [number, number][] = [
         [lat - dLat * 0.8, lng + dLng * 1.15],
         [lat + dLat * 0.9, lng + dLng * 1.15],
         [lat + dLat * 0.85, lng + dLng * 2.2],
         [lat - dLat * 0.75, lng + dLng * 2.15]
       ];
+      const eastGatNum = baseGatNum > 1 ? baseGatNum - 1 : baseGatNum + 2;
+      const eastTitle = secondaryOwner2
+        ? `Hissa ${secondaryOwner2.surveyHissaNo || `${baseGatNum}/3`}: ${secondaryOwner2.name} (${secondaryOwner2.shareAcres || ''} Ac)`
+        : `शेजारील गट क्र. ${eastGatNum} (Adjoining Farm Gat ${eastGatNum})`;
+
+      const eastPopup = secondaryOwner2
+        ? `<div style="font-family: Inter, sans-serif; padding: 4px; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: 800; color: #f59e0b; text-transform: uppercase;">७/१२ सहहिस्सा (Co-Owner Parcel)</div>
+            <div style="font-size: 13px; font-weight: 800; margin: 3px 0; color: #0f172a;">${secondaryOwner2.name} (${secondaryOwner2.relationship || 'Co-Owner'})</div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 4px 0;" />
+            <div style="font-size: 11px; line-height: 1.5; color: #334155;">
+              <div><strong>Survey Hissa:</strong> ${secondaryOwner2.surveyHissaNo || `${baseGatNum}/3`}</div>
+              <div><strong>Holding Area:</strong> ${secondaryOwner2.shareAcres} Acres (${secondaryOwner2.percentage || ''}%)</div>
+              ${secondaryOwner2.assignedCrop ? `<div><strong>Crop:</strong> <span style="color: #16a34a; font-weight: 700;">${secondaryOwner2.assignedCrop}</span></div>` : ''}
+              <div><strong>Status:</strong> <span style="color: #10b981; font-weight: 700;">Joint 7/12 Co-Titled</span></div>
+            </div>
+          </div>`
+        : `<div style="font-family: Inter, sans-serif; padding: 4px; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: 800; color: #f59e0b; text-transform: uppercase;">शेजारील भू-खंड (East Boundary)</div>
+            <div style="font-size: 13px; font-weight: 800; margin: 3px 0; color: #0f172a;">Gat No. ${eastGatNum}</div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 4px 0;" />
+            <div style="font-size: 11px; line-height: 1.5; color: #334155;">
+              <div><strong>Cadastre:</strong> Agricultural Farmland (कृषी जमीन)</div>
+              <div><strong>Village Cadastre:</strong> ${village || 'Adjoining Sector'} गाव नकाशा</div>
+            </div>
+          </div>`;
+
       L.polygon(neighborEast, {
         color: '#f59e0b',
-        weight: 1.5,
+        weight: 1.8,
         fillColor: '#f59e0b',
-        fillOpacity: 0.14
-      }).bindTooltip('Plot P-126 (Owner C)', { permanent: false }).addTo(neighborLayersRef.current);
+        fillOpacity: 0.16
+      }).bindTooltip(eastTitle, { permanent: false }).bindPopup(eastPopup).addTo(neighborLayersRef.current);
     }
 
-    // 4. DP Road (24m Corridor) Line
+    // 4. Dynamic Farm Approach Road / Waterway Corridor
     if (dpRoadLayerRef.current) {
       dpRoadLayerRef.current.remove();
     }
@@ -155,24 +313,29 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
       [lat - dLatRoad * 1.35, lng + dLngRoad * 2.8]
     ];
     const dpRoad = L.polyline(dpRoadCoords, {
-      color: '#64748b',
-      weight: 6,
-      opacity: 0.8,
-      dashArray: '12 8'
-    }).bindTooltip('DP Road (24m Corridor)', { permanent: true, direction: 'bottom' }).addTo(map);
+      color: isCanal ? '#0284c7' : '#ca8a04',
+      weight: 5,
+      opacity: 0.85,
+      dashArray: isCanal ? '12 6' : '10 8'
+    }).bindTooltip(roadLabel, { permanent: true, direction: 'bottom' }).addTo(map);
     dpRoadLayerRef.current = dpRoad;
 
-    // 5. Pulsing ULPIN Marker with Owner Name
+    // 5. Pulsing ULPIN Marker with Dynamic Owner Name & Details
     if (markerRef.current) {
       markerRef.current.remove();
     }
 
+    const coOwnersSubTag = coOwners && coOwners.length > 1
+      ? `<div style="font-size: 9px; color: #34d399; font-weight: 600; margin-top: 2px;">👥 ${coOwners.length} Co-Owners (७/१२ सहहिस्सेदार)</div>`
+      : '';
+
     const pinHtml = `
       <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer;">
         <div style="background: rgba(12, 21, 36, 0.95); border: 2px solid #0284c7; border-radius: 8px; padding: 7px 14px; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.6); text-align: center; color: white; white-space: nowrap; backdrop-filter: blur(8px);">
-          <div style="font-size: 9px; font-weight: 800; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase;">ULPIN PARCEL</div>
-          <div style="font-size: 11px; font-weight: 700; font-family: monospace; color: #ffffff; margin-top: 1px;">${ulpin}</div>
-          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Owner: <strong style="color: #38bdf8;">${ownerName}</strong></div>
+          <div style="font-size: 9px; font-weight: 800; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase;">BHU-AADHAAR ULPIN</div>
+          <div style="font-size: 11px; font-weight: 700; font-family: monospace; color: #ffffff; margin-top: 1px;">${effectiveUlpin}</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Owner: <strong style="color: #38bdf8;">${effectiveOwner}</strong></div>
+          ${coOwnersSubTag}
         </div>
         <div style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid #0284c7;"></div>
         <div style="width: 10px; height: 10px; border-radius: 50%; background: #0284c7; box-shadow: 0 0 12px #38bdf8; margin-top: -3px;"></div>
@@ -189,19 +352,33 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
     markerRef.current = marker;
 
-    // Rich Popup
+    // Dynamic Rich Popup
+    const coOwnersSummaryHtml = coOwners && coOwners.length > 0
+      ? `
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
+          <div style="font-size: 10px; font-weight: 700; color: #475569; margin-bottom: 4px;">७/१२ सहहिस्सेदार (${coOwners.length} Co-Owners):</div>
+          <div style="display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: #334155;">
+            ${coOwners.map((o) => `<div>• <strong>${o.name}</strong> (${o.relationship || 'Owner'}): ${o.shareAcres} Ac ${o.assignedCrop ? '[' + o.assignedCrop + ']' : ''}</div>`).join('')}
+          </div>
+        </div>
+      `
+      : '';
+
     const popupContent = `
-      <div style="font-family: Inter, sans-serif; color: #0f172a; padding: 6px; min-width: 230px;">
-        <div style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase;">Cadastral Land Holding</div>
+      <div style="font-family: Inter, sans-serif; color: #0f172a; padding: 6px; min-width: 240px;">
+        <div style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase;">Cadastral Land Holding (भू-नकाशा)</div>
         <div style="font-size: 13px; font-weight: 800; margin: 3px 0; color: #0f172a;">${farmName}</div>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 6px 0;" />
         <div style="font-size: 11px; line-height: 1.6; color: #334155;">
-          <div><strong>ULPIN:</strong> <span style="font-family: monospace; color: #0284c7;">${ulpin}</span></div>
-          <div><strong>Registered Owner:</strong> <span style="font-weight: 700; color: #0284c7;">${ownerName}</span></div>
+          <div><strong>ULPIN (भू-आधार):</strong> <span style="font-family: monospace; color: #0284c7; font-weight: 700;">${effectiveUlpin}</span></div>
+          <div><strong>Primary Cultivator:</strong> <span style="font-weight: 700; color: #0284c7;">${effectiveOwner}</span></div>
           <div><strong>Survey / Gat:</strong> ${gatNumber}</div>
           <div><strong>Cadastral Area:</strong> ${areaAcres} Acres</div>
+          ${village ? `<div><strong>Location:</strong> ${village}${taluka ? ', ' + taluka : ''}${district ? ', ' + district : ''}</div>` : ''}
+          <div><strong>Approach Access:</strong> <span style="color: #0284c7; font-weight: 600;">${roadLabel}</span></div>
           <div><strong>Status:</strong> <span style="color: #10b981; font-weight: 700;">Verified (Geo-fenced)</span></div>
         </div>
+        ${coOwnersSummaryHtml}
       </div>
     `;
     poly.bindPopup(popupContent);
@@ -213,7 +390,7 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     }, 150);
 
     return () => clearTimeout(t);
-  }, [center, ownerName, ulpin, farmName, areaAcres, gatNumber, polygonPoints]);
+  }, [center, ownerName, ulpin, farmName, areaAcres, gatNumber, polygonPoints, village, taluka, district, state, irrigationSource, coOwners, effectiveOwner, effectiveUlpin, roadLabel]);
 
   // Handle Map Style Switch
   const handleMapStyleToggle = (style: 'satellite' | 'street') => {
@@ -495,6 +672,22 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
         <span>
           Plot: <strong style={{ color: '#38bdf8' }}>{gatNumber}</strong>
         </span>
+        {village && (
+          <>
+            <span>•</span>
+            <span>
+              Village: <strong style={{ color: '#f59e0b' }}>{village}</strong>
+            </span>
+          </>
+        )}
+        {areaAcres && (
+          <>
+            <span>•</span>
+            <span>
+              Area: <strong style={{ color: '#34d399' }}>{areaAcres} Ac</strong>
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
