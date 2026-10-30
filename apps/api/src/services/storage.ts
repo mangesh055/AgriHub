@@ -122,6 +122,18 @@ class InMemoryStore {
         ]
       },
       notes: 'Deep Black Cotton Soil, equipped with Netafim automated drip line.',
+      ownershipType: 'JOINT_FAMILY',
+      gatNumber: 'Gat No. 142/A (गट क्र. १४२/अ)',
+      cropAllocations: [
+        { cropName: 'Sugarcane', allocatedAcres: 2.0, season: 'Kharif' },
+        { cropName: 'Soybean', allocatedAcres: 1.5, season: 'Kharif' },
+        { cropName: 'Pomegranate', allocatedAcres: 1.0, season: 'Annual' }
+      ],
+      coOwners: [
+        { id: 'co-1', name: 'Ramesh Patel', relationship: 'Self', shareAcres: 1.5, percentage: 33.3, surveyHissaNo: '142/1', isManagingCultivator: true, assignedCrop: 'Sugarcane' },
+        { id: 'co-2', name: 'Suresh Patel', relationship: 'Brother', shareAcres: 1.5, percentage: 33.3, surveyHissaNo: '142/2', isManagingCultivator: false, assignedCrop: 'Soybean' },
+        { id: 'co-3', name: 'Mahesh Patel', relationship: 'Brother', shareAcres: 1.5, percentage: 33.3, surveyHissaNo: '142/3', isManagingCultivator: false, assignedCrop: 'Pomegranate' }
+      ],
       createdAt: '2026-01-16T10:30:00.000Z',
       updatedAt: '2026-01-16T10:30:00.000Z'
     });

@@ -9,7 +9,9 @@ import {
   AlertCircle,
   Download,
   Trash2,
-  PieChart
+  PieChart,
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
@@ -201,6 +203,18 @@ export const FarmsPage: React.FC = () => {
                       <span>{f.locationName || [f.village, f.taluka, f.district, f.state].filter(Boolean).join(', ')}</span>
                     </p>
                   )}
+                  {f.gatNumber && (
+                    <p style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginBottom: '4px' }}>
+                      🏷️ {f.gatNumber}
+                    </p>
+                  )}
+                  {f.coOwners && f.coOwners.length > 0 && (
+                    <div style={{ marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', fontWeight: 600 }}>
+                        👥 7/12 Co-Owned ({f.coOwners.length} Sharers)
+                      </span>
+                    </div>
+                  )}
                   {f.cropAllocations && f.cropAllocations.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', margin: '6px 0' }}>
                       {f.cropAllocations.map((ca: any, i: number) => (
@@ -327,6 +341,8 @@ export const FarmsPage: React.FC = () => {
                 height={440}
                 readOnly
                 showNdvi={ndviVisible}
+                coOwners={selectedFarm.coOwners}
+                gatNumber={selectedFarm.gatNumber}
               />
               {/* Action buttons */}
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
@@ -367,6 +383,115 @@ export const FarmsPage: React.FC = () => {
                   <span>Delete Plot</span>
                 </button>
               </div>
+
+              {/* 7/12 Land Ownership & Co-Khatedar Partitioning Breakdown Card */}
+              {selectedFarm?.coOwners && selectedFarm.coOwners.length > 0 && (
+                <div
+                  style={{
+                    marginTop: '20px',
+                    padding: '20px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                        <Users size={18} color="#38bdf8" />
+                        <span>7/12 Land Ownership & Co-Khatedar Division (सामाईक खातेदार)</span>
+                      </h4>
+                      {selectedFarm.gatNumber && (
+                        <span className="badge badge-info" style={{ fontSize: '0.74rem' }}>
+                          🏷️ {selectedFarm.gatNumber}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                      Total Cadastral Area: <strong style={{ color: 'var(--text-heading)' }}>{selectedFarm.areaAcres} Acres</strong> • <strong>{selectedFarm.coOwners.length} Co-Sharers</strong>
+                    </span>
+                  </div>
+
+                  {/* Multi-color Co-Owner GIS Division Progress Bar */}
+                  <div style={{ height: '10px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '16px' }}>
+                    {selectedFarm.coOwners.map((owner: any, i: number) => {
+                      const acres = Number(owner.shareAcres) || 0;
+                      const total = Number(selectedFarm.areaAcres) || 1;
+                      const pct = Math.min(100, (acres / total) * 100);
+                      const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            background: colors[i % colors.length],
+                            transition: 'width 0.3s ease'
+                          }}
+                          title={`${owner.name} (${owner.relationship || 'Co-Owner'}): ${acres} Ac (${pct.toFixed(1)}%)`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Co-Owners Cards Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                    {selectedFarm.coOwners.map((owner: any, i: number) => {
+                      const acres = Number(owner.shareAcres) || 0;
+                      const total = Number(selectedFarm.areaAcres) || 1;
+                      const pct = Math.round((acres / total) * 100);
+                      const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
+                      const rowColor = colors[i % colors.length];
+
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid var(--border-subtle)',
+                            borderLeft: `4px solid ${rowColor}`
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-heading)' }}>
+                                {owner.name}
+                              </span>
+                              {owner.isManagingCultivator && (
+                                <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px' }}>
+                                  ★ Cultivator
+                                </span>
+                              )}
+                            </div>
+                            <span className="badge badge-info" style={{ fontSize: '0.72rem', padding: '2px 7px' }}>
+                              {pct}% Share
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                            <strong style={{ color: rowColor }}>{acres} Acres</strong> • Relation: <strong>{owner.relationship || 'Co-Khatedar'}</strong>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            {owner.surveyHissaNo ? (
+                              <span>Hissa: <strong>{owner.surveyHissaNo}</strong></span>
+                            ) : (
+                              <span>Hissa: <strong>Unmarked</strong></span>
+                            )}
+                            {owner.assignedCrop && (
+                              <span style={{ background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                🌱 {owner.assignedCrop}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Land Usage & Crop Allocation Breakdown Card */}
               {selectedFarm?.cropAllocations && selectedFarm.cropAllocations.length > 0 && (

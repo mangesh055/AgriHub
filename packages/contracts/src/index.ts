@@ -137,6 +137,22 @@ export const GeoPolygonSchema = z.object({
 });
 export type GeoPolygon = z.infer<typeof GeoPolygonSchema>;
 
+export const OwnershipTypeEnum = z.enum(['INDIVIDUAL', 'JOINT_FAMILY', 'CO_OWNED', 'LEASED']);
+export type OwnershipType = z.infer<typeof OwnershipTypeEnum>;
+
+export const FarmCoOwnerSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Co-owner name is required'),
+  relationship: z.string().default('Brother'),
+  shareAcres: z.number().positive('Share acres must be greater than 0'),
+  percentage: z.number().optional(),
+  surveyHissaNo: z.string().optional(),
+  isManagingCultivator: z.boolean().default(false),
+  assignedCrop: z.string().optional(),
+  contactNumber: z.string().optional()
+});
+export type FarmCoOwner = z.infer<typeof FarmCoOwnerSchema>;
+
 export const CropAllocationSchema = z.object({
   cropName: z.string(),
   allocatedAcres: z.number(),
@@ -151,6 +167,9 @@ export const CreateFarmRequestSchema = z.object({
   irrigationSource: z.string().min(1, 'At least one water source is required'),
   waterSources: z.array(z.string()).optional(),
   cropAllocations: z.array(CropAllocationSchema).optional(),
+  ownershipType: OwnershipTypeEnum.optional(),
+  gatNumber: z.string().optional(),
+  coOwners: z.array(FarmCoOwnerSchema).optional(),
   village: z.string().optional(),
   taluka: z.string().optional(),
   district: z.string().optional(),

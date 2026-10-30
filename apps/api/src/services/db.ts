@@ -106,6 +106,9 @@ export const db = {
             locationName: f.location_name || locMeta.locationName || '',
             boundaryGeoJson: f.boundary_geojson,
             cropAllocations: f.crop_allocations || locMeta.cropAllocations || [],
+            ownershipType: f.ownership_type || locMeta.ownershipType || 'INDIVIDUAL',
+            gatNumber: f.gat_number || locMeta.gatNumber || '',
+            coOwners: f.co_owners || locMeta.coOwners || [],
             notes: f.notes,
             createdAt: f.created_at,
             updatedAt: f.updated_at
@@ -134,7 +137,10 @@ export const db = {
           district: farm.district || '',
           state: farm.state || '',
           locationName: farm.locationName || '',
-          cropAllocations: farm.cropAllocations || []
+          cropAllocations: farm.cropAllocations || [],
+          ownershipType: farm.ownershipType || 'INDIVIDUAL',
+          gatNumber: farm.gatNumber || '',
+          coOwners: farm.coOwners || []
         }
       };
 
@@ -176,6 +182,9 @@ export const db = {
           locationName: farm.locationName || locMeta.locationName || data.location_name,
           boundaryGeoJson: data.boundary_geojson,
           cropAllocations: farm.cropAllocations || locMeta.cropAllocations || [],
+          ownershipType: farm.ownershipType || locMeta.ownershipType || 'INDIVIDUAL',
+          gatNumber: farm.gatNumber || locMeta.gatNumber || '',
+          coOwners: farm.coOwners || locMeta.coOwners || [],
           notes: data.notes,
           createdAt: data.created_at,
           updatedAt: data.updated_at

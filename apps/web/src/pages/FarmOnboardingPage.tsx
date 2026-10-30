@@ -14,13 +14,17 @@ import {
   PieChart,
   Plus,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  ShieldCheck,
+  Divide
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 
 const POPULAR_CROPS = [
+  { id: 'CUSTOM', label: '✍️ Custom Crop (स्वतःचे पीक प्रविष्ट करा)' },
   { id: 'Soybean', label: 'Soybean (सोयाबीन)' },
   { id: 'Cotton', label: 'Bt Cotton (कापूस)' },
   { id: 'Sugarcane', label: 'Sugarcane (ऊस)' },
@@ -85,6 +89,8 @@ export const FarmOnboardingPage: React.FC = () => {
   const [farmData, setFarmData] = useState({
     name: 'Shivaji Agri Fields',
     areaAcres: '4.0',
+    ownershipType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'JOINT_FAMILY' | 'CO_OWNED' | 'LEASED',
+    gatNumber: 'Gat No. 124/A (गट क्र. १२४/अ)',
     village: 'Malegaon',
     taluka: 'Baramati',
     district: 'Pune',
@@ -121,11 +127,34 @@ export const FarmOnboardingPage: React.FC = () => {
   // Crop Land Allocation (Planned land usage breakdown)
   const [cropAllocations, setCropAllocations] = useState<Array<{
     cropName: string;
+    customCropName?: string;
+    isCustom?: boolean;
     allocatedAcres: string;
     season: string;
     variety?: string;
   }>>([
-    { cropName: 'Soybean', allocatedAcres: '4.0', season: 'KHARIF', variety: 'JS-335' }
+    { cropName: 'Soybean', customCropName: '', isCustom: false, allocatedAcres: '4.0', season: 'KHARIF', variety: 'JS-335' }
+  ]);
+
+  // 7/12 Co-Owners & Land Sharers
+  const [coOwners, setCoOwners] = useState<Array<{
+    id: string;
+    name: string;
+    relationship: string;
+    shareAcres: string;
+    surveyHissaNo: string;
+    isManagingCultivator: boolean;
+    assignedCrop: string;
+  }>>([
+    {
+      id: 'co-self',
+      name: 'Ramesh Patel',
+      relationship: 'Self',
+      shareAcres: '4.0',
+      surveyHissaNo: '124/1',
+      isManagingCultivator: true,
+      assignedCrop: 'Soybean'
+    }
   ]);
 
   const totalAcres = parseFloat(farmData.areaAcres) || 0;
@@ -133,11 +162,15 @@ export const FarmOnboardingPage: React.FC = () => {
   const remainingAcres = Number((totalAcres - allocatedTotal).toFixed(2));
   const isOverAllocated = allocatedTotal > totalAcres;
 
+  const coOwnerTotalAcres = coOwners.reduce((sum, o) => sum + (parseFloat(o.shareAcres) || 0), 0);
+  const isCoOwnerOverAllocated = coOwnerTotalAcres > totalAcres;
+  const remainingCoOwnerAcres = Number((totalAcres - coOwnerTotalAcres).toFixed(2));
+
   function addCropAllocation() {
     const remaining = Math.max(0, Number((totalAcres - allocatedTotal).toFixed(2)));
     setCropAllocations((prev) => [
       ...prev,
-      { cropName: 'Cotton', allocatedAcres: remaining > 0 ? String(remaining) : '1.0', season: 'KHARIF', variety: '' }
+      { cropName: 'Cotton', customCropName: '', isCustom: false, allocatedAcres: remaining > 0 ? String(remaining) : '1.0', season: 'KHARIF', variety: '' }
     ]);
   }
 
@@ -146,12 +179,53 @@ export const FarmOnboardingPage: React.FC = () => {
     setCropAllocations((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateCropAllocation(index: number, field: string, value: string) {
+  function updateCropAllocation(index: number, field: string, value: any) {
     setCropAllocations((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
       return next;
     });
+  }
+
+  function addCoOwner() {
+    const remaining = Math.max(0, Number((totalAcres - coOwnerTotalAcres).toFixed(2)));
+    const brotherIndex = coOwners.length;
+    setCoOwners((prev) => [
+      ...prev,
+      {
+        id: `co-${Date.now()}-${brotherIndex}`,
+        name: `Brother ${brotherIndex}`,
+        relationship: 'Brother',
+        shareAcres: remaining > 0 ? String(remaining) : '1.0',
+        surveyHissaNo: `124/${brotherIndex + 1}`,
+        isManagingCultivator: false,
+        assignedCrop: cropAllocations[0]?.cropName || 'Soybean'
+      }
+    ]);
+  }
+
+  function removeCoOwner(index: number) {
+    if (coOwners.length <= 1) return;
+    setCoOwners((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateCoOwner(index: number, field: string, value: any) {
+    setCoOwners((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
+
+  function handleEqualSplit() {
+    if (coOwners.length === 0 || totalAcres <= 0) return;
+    const split = (totalAcres / coOwners.length).toFixed(2);
+    setCoOwners((prev) =>
+      prev.map((o) => ({
+        ...o,
+        shareAcres: split
+      }))
+    );
   }
 
   function toggleWaterSource(id: string) {
@@ -303,17 +377,43 @@ export const FarmOnboardingPage: React.FC = () => {
       const irrigationJoined = farmData.waterSources.join(', ') || 'DRIP';
       const locationFull = [farmData.village, farmData.taluka, farmData.district, farmData.state].filter(Boolean).join(', ');
 
-      const parsedAllocations = cropAllocations.map((c) => ({
-        cropName: c.cropName,
-        allocatedAcres: parseFloat(c.allocatedAcres) || 0,
-        season: c.season || 'KHARIF',
-        variety: c.variety?.trim() || undefined
-      }));
+      const parsedAllocations = cropAllocations.map((c) => {
+        const effectiveCrop = (c.isCustom || c.cropName === 'CUSTOM') && c.customCropName?.trim()
+          ? c.customCropName.trim()
+          : (c.cropName === 'CUSTOM' ? 'Custom Crop' : c.cropName);
+        return {
+          cropName: effectiveCrop,
+          allocatedAcres: parseFloat(c.allocatedAcres) || 0,
+          season: c.season || 'KHARIF',
+          variety: c.variety?.trim() || undefined
+        };
+      });
+
+      const isCoOwned = farmData.ownershipType === 'JOINT_FAMILY' || farmData.ownershipType === 'CO_OWNED';
+      const parsedCoOwners = isCoOwned
+        ? coOwners.map((o) => {
+            const acres = parseFloat(o.shareAcres) || 0;
+            const pct = totalAcres > 0 ? Number(((acres / totalAcres) * 100).toFixed(1)) : 0;
+            return {
+              id: o.id,
+              name: o.name.trim() || 'Co-Owner',
+              relationship: o.relationship,
+              shareAcres: acres,
+              percentage: pct,
+              surveyHissaNo: o.surveyHissaNo?.trim() || undefined,
+              isManagingCultivator: o.isManagingCultivator,
+              assignedCrop: o.assignedCrop || undefined
+            };
+          })
+        : undefined;
 
       // 1. Create Farm Plot
       const createdFarm = await api.createFarm({
         name: farmData.name.trim() || 'My Farm Plot',
         areaAcres: parseFloat(farmData.areaAcres) || 1.0,
+        ownershipType: farmData.ownershipType,
+        gatNumber: farmData.gatNumber.trim() || undefined,
+        coOwners: parsedCoOwners,
         irrigationSource: irrigationJoined,
         waterSources: farmData.waterSources,
         cropAllocations: parsedAllocations,
@@ -537,8 +637,17 @@ export const FarmOnboardingPage: React.FC = () => {
                     <label className="form-label-muted">Crop Name</label>
                     <select
                       className="form-input"
-                      value={c.cropName}
-                      onChange={(e) => updateCropAllocation(idx, 'cropName', e.target.value)}
+                      value={c.isCustom ? 'CUSTOM' : c.cropName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'CUSTOM') {
+                          updateCropAllocation(idx, 'isCustom', true);
+                          updateCropAllocation(idx, 'cropName', 'CUSTOM');
+                        } else {
+                          updateCropAllocation(idx, 'isCustom', false);
+                          updateCropAllocation(idx, 'cropName', val);
+                        }
+                      }}
                     >
                       {POPULAR_CROPS.map((crop) => (
                         <option key={crop.id} value={crop.id}>
@@ -546,6 +655,17 @@ export const FarmOnboardingPage: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                    {(c.isCustom || c.cropName === 'CUSTOM') && (
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ marginTop: '6px', borderColor: '#10b981', background: 'rgba(16, 185, 129, 0.08)' }}
+                        placeholder="Type custom crop name (e.g. Turmeric, Dragonfruit, Saffron)"
+                        value={c.customCropName || ''}
+                        onChange={(e) => updateCropAllocation(idx, 'customCropName', e.target.value)}
+                        required
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -612,6 +732,250 @@ export const FarmOnboardingPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Section 1C: Land Ownership & 7/12 Co-Sharers Partitioning */}
+          <div style={{ padding: '24px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                  <Users size={20} color="#10b981" />
+                  <span>3. Land Ownership & 7/12 Co-Sharers (Hissa Partitioning)</span>
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Choose individual ownership or specify joint family co-sharers (e.g. Ramesh & brothers) to display sub-plots on the GIS satellite map.
+                </p>
+              </div>
+            </div>
+
+            {/* Ownership Type & Gat / Survey Number Fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <label className="form-label">Ownership Type</label>
+                <select
+                  className="form-input"
+                  value={farmData.ownershipType}
+                  onChange={(e) => setFarmData({ ...farmData, ownershipType: e.target.value as any })}
+                >
+                  <option value="INDIVIDUAL">Individual Owner (स्वमालकी / एकल खातेदार)</option>
+                  <option value="JOINT_FAMILY">Joint Family / Co-Owned (सामाईक खातेदार / बंधू हिस्सा - 7/12)</option>
+                  <option value="LEASED">Leased / Tenant Farm (खंड / भाडेतत्वावर जमीन)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label">Cadastral Gat / Survey Number (7/12)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Gat No. 124/A (गट क्र. १२४/अ)"
+                  value={farmData.gatNumber}
+                  onChange={(e) => setFarmData({ ...farmData, gatNumber: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Joint Family / Co-Owners Manager */}
+            {(farmData.ownershipType === 'JOINT_FAMILY' || farmData.ownershipType === 'CO_OWNED') && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.94rem', fontWeight: 700, color: '#38bdf8' }}>
+                    Co-Owners & 7/12 Land Share Division (GIS Satellite Sub-Plots)
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      onClick={handleEqualSplit}
+                      title="Divide total farm acreage equally among all co-owners"
+                    >
+                      <Divide size={14} color="#38bdf8" />
+                      <span>Equal Split (समान वाटप)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      onClick={addCoOwner}
+                    >
+                      <Plus size={14} color="#10b981" />
+                      <span>+ Add Co-Owner</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Co-Owner Share Visual Progress Meter */}
+                <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.84rem' }}>
+                    <span>Total Land: <strong>{totalAcres} Acres</strong></span>
+                    <span>
+                      Sharers Total: <strong style={{ color: isCoOwnerOverAllocated ? '#ef4444' : '#38bdf8' }}>{coOwnerTotalAcres.toFixed(2)} Ac</strong>
+                      {remainingCoOwnerAcres > 0 && <span style={{ color: 'var(--text-muted)' }}> ({remainingCoOwnerAcres.toFixed(2)} Ac unassigned)</span>}
+                    </span>
+                  </div>
+
+                  {/* Multi-color co-owner share bar */}
+                  <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                    {coOwners.map((o, idx) => {
+                      const acres = parseFloat(o.shareAcres) || 0;
+                      const pct = totalAcres > 0 ? (acres / totalAcres) * 100 : 0;
+                      const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            background: colors[idx % colors.length],
+                            transition: 'width 0.3s ease'
+                          }}
+                          title={`${o.name}: ${acres} Ac (${pct.toFixed(1)}%)`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {isCoOwnerOverAllocated && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontSize: '0.82rem', marginTop: '8px', fontWeight: 600 }}>
+                      <AlertTriangle size={15} />
+                      <span>Warning: Co-owners shares ({coOwnerTotalAcres.toFixed(2)} Ac) exceed total farm area ({totalAcres} Ac)!</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Co-Owner Rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {coOwners.map((owner, oIdx) => {
+                    const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+                    const rowColor = colors[oIdx % colors.length];
+                    const ownerPct = totalAcres > 0 ? (((parseFloat(owner.shareAcres) || 0) / totalAcres) * 100).toFixed(1) : '0';
+
+                    return (
+                      <div
+                        key={owner.id || oIdx}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--border-subtle)',
+                          borderLeft: `4px solid ${rowColor}`,
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(110px, 1fr) minmax(90px, 0.9fr) minmax(100px, 1fr) minmax(120px, 1.2fr) minmax(130px, 1fr) 36px',
+                          gap: '10px',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <label className="form-label-muted">Owner Name</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g. Ramesh / Suresh Patel"
+                            value={owner.name}
+                            onChange={(e) => updateCoOwner(oIdx, 'name', e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="form-label-muted">Relationship</label>
+                          <select
+                            className="form-input"
+                            value={owner.relationship}
+                            onChange={(e) => updateCoOwner(oIdx, 'relationship', e.target.value)}
+                          >
+                            <option value="Self">Self (स्वतः)</option>
+                            <option value="Brother">Brother (बंधू)</option>
+                            <option value="Father">Father (वडील)</option>
+                            <option value="Mother">Mother (आई)</option>
+                            <option value="Sister">Sister (बहीण)</option>
+                            <option value="Co-Khatedar">Co-Khatedar (सामाईक खातेदार)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="form-label-muted">Share (Acres)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="form-input"
+                            placeholder="e.g. 2.5"
+                            value={owner.shareAcres}
+                            onChange={(e) => updateCoOwner(oIdx, 'shareAcres', e.target.value)}
+                            required
+                          />
+                          <span style={{ fontSize: '0.72rem', color: rowColor, fontWeight: 700, marginTop: '2px', display: 'block' }}>
+                            {ownerPct}% Land
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="form-label-muted">7/12 Hissa No.</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g. 124/1"
+                            value={owner.surveyHissaNo}
+                            onChange={(e) => updateCoOwner(oIdx, 'surveyHissaNo', e.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="form-label-muted">Assigned Crop</label>
+                          <select
+                            className="form-input"
+                            value={owner.assignedCrop}
+                            onChange={(e) => updateCoOwner(oIdx, 'assignedCrop', e.target.value)}
+                          >
+                            {cropAllocations.map((ca, cIdx) => (
+                              <option key={cIdx} value={ca.isCustom && ca.customCropName ? ca.customCropName : ca.cropName}>
+                                {ca.isCustom && ca.customCropName ? ca.customCropName : ca.cropName} ({ca.allocatedAcres} Ac)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div style={{ paddingTop: '16px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-main)', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={owner.isManagingCultivator}
+                              onChange={(e) => updateCoOwner(oIdx, 'isManagingCultivator', e.target.checked)}
+                            />
+                            <span>Cultivator</span>
+                          </label>
+                        </div>
+
+                        <div style={{ paddingTop: '16px' }}>
+                          {coOwners.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeCoOwner(oIdx)}
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                color: '#f87171',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer'
+                              }}
+                              title="Remove co-owner"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 3: Farm Location & Regional Geography */}
@@ -738,6 +1102,19 @@ export const FarmOnboardingPage: React.FC = () => {
                 lng: parseFloat(farmData.longitude) || 78.9629
               }}
               height={460}
+              coOwners={
+                (farmData.ownershipType === 'JOINT_FAMILY' || farmData.ownershipType === 'CO_OWNED')
+                  ? coOwners.map((o) => ({
+                      name: o.name,
+                      relationship: o.relationship,
+                      shareAcres: parseFloat(o.shareAcres) || 0,
+                      surveyHissaNo: o.surveyHissaNo,
+                      isManagingCultivator: o.isManagingCultivator,
+                      assignedCrop: o.assignedCrop
+                    }))
+                  : undefined
+              }
+              gatNumber={farmData.gatNumber}
               onChange={(pts, geo) => {
                 setBoundaryPoints(pts);
                 setBoundaryGeoJSON(geo);

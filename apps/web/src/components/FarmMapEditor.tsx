@@ -11,6 +11,17 @@ L.Icon.Default.mergeOptions({
 
 export interface LatLng { lat: number; lng: number; }
 
+export interface CoOwnerPartition {
+  id?: string;
+  name: string;
+  relationship?: string;
+  shareAcres: number;
+  percentage?: number;
+  surveyHissaNo?: string;
+  isManagingCultivator?: boolean;
+  assignedCrop?: string;
+}
+
 export interface FarmMapEditorProps {
   center?: LatLng;
   initialPolygon?: LatLng[];
@@ -18,6 +29,8 @@ export interface FarmMapEditorProps {
   height?: string | number;
   readOnly?: boolean;
   showNdvi?: boolean;
+  coOwners?: CoOwnerPartition[];
+  gatNumber?: string;
 }
 
 // ── GeoJSON helpers ────────────────────────────────────────────────────────────
@@ -34,6 +47,103 @@ function computeCentroid(points: LatLng[]): LatLng {
     lat: points.reduce((s, p) => s + p.lat, 0) / points.length,
     lng: points.reduce((s, p) => s + p.lng, 0) / points.length,
   };
+}
+
+// ── Sutherland-Hodgman Polygon Partitioning for 7/12 Co-Owners ────────────────
+function clipHalfPlane(
+  poly: LatLng[],
+  inside: (p: LatLng) => boolean,
+  intersect: (p1: LatLng, p2: LatLng) => LatLng
+): LatLng[] {
+  const res: LatLng[] = [];
+  if (poly.length === 0) return res;
+  let s = poly[poly.length - 1];
+  for (const e of poly) {
+    if (inside(e)) {
+      if (inside(s)) {
+        res.push(e);
+      } else {
+        res.push(intersect(s, e));
+        res.push(e);
+      }
+    } else if (inside(s)) {
+      res.push(intersect(s, e));
+    }
+    s = e;
+  }
+  return res;
+}
+
+const OWNER_PALETTE = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
+
+function partitionPolygonByShares(
+  poly: LatLng[],
+  owners: CoOwnerPartition[]
+): Array<{ owner: CoOwnerPartition; subPoly: LatLng[]; color: string }> {
+  if (poly.length < 3 || owners.length === 0) return [];
+  if (owners.length === 1) {
+    return [{ owner: owners[0], subPoly: poly, color: OWNER_PALETTE[0] }];
+  }
+
+  const lats = poly.map((p) => p.lat);
+  const lngs = poly.map((p) => p.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+
+  const deltaLat = maxLat - minLat;
+  const deltaLng = maxLng - minLng;
+  const sliceAlongLng = deltaLng >= deltaLat;
+
+  const totalAcres = owners.reduce((s, o) => s + (Number(o.shareAcres) || 1), 0) || 1;
+  const result: Array<{ owner: CoOwnerPartition; subPoly: LatLng[]; color: string }> = [];
+
+  let accumulatedFrac = 0;
+  for (let i = 0; i < owners.length; i++) {
+    const owner = owners[i];
+    const frac = (Number(owner.shareAcres) || 1) / totalAcres;
+    const startFrac = accumulatedFrac;
+    const endFrac = i === owners.length - 1 ? 1 : Math.min(1, accumulatedFrac + frac);
+    accumulatedFrac = endFrac;
+
+    let sub: LatLng[] = [];
+    if (sliceAlongLng) {
+      const vMin = minLng + startFrac * deltaLng;
+      const vMax = minLng + endFrac * deltaLng;
+      const step1 = clipHalfPlane(poly, (p) => p.lng >= vMin, (p1, p2) => {
+        const denom = (p2.lng - p1.lng) || 0.0000001;
+        const t = (vMin - p1.lng) / denom;
+        return { lat: p1.lat + t * (p2.lat - p1.lat), lng: vMin };
+      });
+      sub = clipHalfPlane(step1, (p) => p.lng <= vMax, (p1, p2) => {
+        const denom = (p2.lng - p1.lng) || 0.0000001;
+        const t = (vMax - p1.lng) / denom;
+        return { lat: p1.lat + t * (p2.lat - p1.lat), lng: vMax };
+      });
+    } else {
+      const vMin = minLat + startFrac * deltaLat;
+      const vMax = minLat + endFrac * deltaLat;
+      const step1 = clipHalfPlane(poly, (p) => p.lat >= vMin, (p1, p2) => {
+        const denom = (p2.lat - p1.lat) || 0.0000001;
+        const t = (vMin - p1.lat) / denom;
+        return { lat: vMin, lng: p1.lng + t * (p2.lng - p1.lng) };
+      });
+      sub = clipHalfPlane(step1, (p) => p.lat <= vMax, (p1, p2) => {
+        const denom = (p2.lat - p1.lat) || 0.0000001;
+        const t = (vMax - p1.lat) / denom;
+        return { lat: vMax, lng: p1.lng + t * (p2.lng - p1.lng) };
+      });
+    }
+
+    if (sub.length >= 3) {
+      result.push({
+        owner,
+        subPoly: sub,
+        color: OWNER_PALETTE[i % OWNER_PALETTE.length]
+      });
+    }
+  }
+
+  return result;
 }
 
 // ── NDVI helpers ───────────────────────────────────────────────────────────────
@@ -140,11 +250,14 @@ export const FarmMapEditor: React.FC<FarmMapEditorProps> = ({
   height = 420,
   readOnly = false,
   showNdvi = false,
+  coOwners,
+  gatNumber
 }) => {
   const containerRef   = useRef<HTMLDivElement>(null);
   const mapRef         = useRef<L.Map | null>(null);
   const mapReadyRef    = useRef(false);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
+  const subPlotsLayerRef = useRef<L.LayerGroup | null>(null);
   const markersRef     = useRef<L.Marker[]>([]);
   const ndviLayerRef   = useRef<L.ImageOverlay | null>(null);
   const onChangeRef    = useRef(onChange);
@@ -159,13 +272,73 @@ export const FarmMapEditor: React.FC<FarmMapEditorProps> = ({
   const drawPolygon = useCallback((pts: LatLng[], map: L.Map) => {
     polygonLayerRef.current?.remove();
     polygonLayerRef.current = null;
+    subPlotsLayerRef.current?.remove();
+    subPlotsLayerRef.current = null;
+
     if (pts.length >= 3) {
+      // 1. Draw outer boundary outline
       polygonLayerRef.current = L.polygon(
         pts.map((p) => [p.lat, p.lng] as [number, number]),
-        { color: '#10b981', fillColor: '#10b981', fillOpacity: 0.18, weight: 2.5, dashArray: readOnly ? undefined : '6 4' }
+        { color: '#10b981', fillColor: '#10b981', fillOpacity: (coOwners && coOwners.length > 0) ? 0.05 : 0.18, weight: 2.5, dashArray: readOnly ? undefined : '6 4' }
       ).addTo(map);
+
+      // 2. If 7/12 Co-Owners exist, visually partition land parcel into color-coded sub-plots
+      if (coOwners && coOwners.length > 0) {
+        const partitions = partitionPolygonByShares(pts, coOwners);
+        const lg = L.layerGroup();
+        const totalAcres = coOwners.reduce((s, o) => s + (Number(o.shareAcres) || 1), 0) || 1;
+
+        partitions.forEach((item) => {
+          const subPolyLayer = L.polygon(
+            item.subPoly.map((p) => [p.lat, p.lng] as [number, number]),
+            {
+              color: item.color,
+              fillColor: item.color,
+              fillOpacity: 0.36,
+              weight: 2.2
+            }
+          );
+
+          const sharePct = ((Number(item.owner.shareAcres) / totalAcres) * 100).toFixed(1);
+
+          subPolyLayer.bindTooltip(
+            `<div style="font-size: 12px; font-weight: 600;">👤 ${item.owner.name} (${item.owner.relationship || 'Co-Owner'})<br/><span style="color: ${item.color}; font-weight: 700;">${item.owner.shareAcres} Acres (${sharePct}%)</span></div>`,
+            { sticky: true }
+          );
+
+          subPolyLayer.bindPopup(`
+            <div style="font-family: inherit; font-size: 13px; line-height: 1.5; color: #0f172a; padding: 4px; min-width: 210px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid ${item.color}; padding-bottom: 6px; margin-bottom: 8px;">
+                <strong style="font-size: 14px; color: ${item.color};">${item.owner.name}</strong>
+                ${item.owner.isManagingCultivator ? '<span style="background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">★ Cultivator</span>' : ''}
+              </div>
+              <div style="margin-bottom: 3px;"><strong>Relationship:</strong> ${item.owner.relationship || 'Co-Owner'}</div>
+              <div style="margin-bottom: 3px;"><strong>Land Share:</strong> ${item.owner.shareAcres} Acres (${sharePct}%)</div>
+              ${item.owner.surveyHissaNo ? `<div style="margin-bottom: 3px;"><strong>7/12 Hissa No:</strong> ${item.owner.surveyHissaNo}</div>` : ''}
+              ${gatNumber ? `<div style="margin-bottom: 3px;"><strong>Gat / Survey:</strong> ${gatNumber}</div>` : ''}
+              ${item.owner.assignedCrop ? `<div style="margin-top: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 4px; color: #15803d; font-weight: 600;">🌱 Assigned Crop: ${item.owner.assignedCrop}</div>` : ''}
+            </div>
+          `);
+
+          subPolyLayer.addTo(lg);
+
+          // Centroid Badge for direct satellite map readability
+          const centroid = computeCentroid(item.subPoly);
+          const badgeIcon = L.divIcon({
+            className: '',
+            html: `<div style="background: rgba(15, 23, 42, 0.88); color: #fff; border: 1.5px solid ${item.color}; border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.5); text-align: center; transform: translate(-50%, -50%);">
+              ${item.owner.name.split(' ')[0]} • ${item.owner.shareAcres} Ac
+            </div>`,
+            iconSize: [0, 0]
+          });
+          L.marker([centroid.lat, centroid.lng], { icon: badgeIcon, interactive: false }).addTo(lg);
+        });
+
+        lg.addTo(map);
+        subPlotsLayerRef.current = lg;
+      }
     }
-  }, [readOnly]);
+  }, [readOnly, coOwners, gatNumber]);
 
   const drawMarkers = useCallback((pts: LatLng[], map: L.Map) => {
     markersRef.current.forEach((m) => m.remove());

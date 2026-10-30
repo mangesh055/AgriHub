@@ -238,7 +238,29 @@ export const DashboardPage: React.FC = () => {
                   Centroid: {Number(selectedFarm.latitude).toFixed(4)}°N, {Number(selectedFarm.longitude).toFixed(4)}°E • 
                   Soil: <strong style={{ color: '#38bdf8' }}>{soilRecord?.soilType?.replace('_', ' ') || 'Black Cotton'} (pH {soilRecord?.ph || 7.2})</strong>
                   {soilRecord ? ` • NPK: ${soilRecord.nitrogen}/${soilRecord.phosphorus}/${soilRecord.potassium}` : ' • Cadastral Plot Verified'}
+                  {selectedFarm.gatNumber ? ` • 🏷️ ${selectedFarm.gatNumber}` : ''}
                 </p>
+                {selectedFarm.coOwners && selectedFarm.coOwners.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600 }}>7/12 Co-Holders:</span>
+                    {selectedFarm.coOwners.map((o: any, idx: number) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '0.74rem',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(56, 189, 248, 0.1)',
+                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                          color: '#38bdf8',
+                          fontWeight: 600
+                        }}
+                      >
+                        👤 {o.name} ({o.relationship || 'Co-Owner'}): {o.shareAcres} Ac
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {selectedFarm.cropAllocations && selectedFarm.cropAllocations.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Planned Land Usage:</span>
