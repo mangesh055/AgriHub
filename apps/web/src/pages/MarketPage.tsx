@@ -63,7 +63,7 @@ export const MarketPage: React.FC = () => {
               <span className="badge badge-warning">RISING 7-DAY OUTLOOK</span>
             </div>
 
-            <p style={{ fontSize: '0.96rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '16px' }}>
+            <p style={{ fontSize: '0.96rem', color: 'var(--text-heading)', lineHeight: 1.5, marginBottom: '16px' }}>
               {decision?.rationale}
             </p>
 

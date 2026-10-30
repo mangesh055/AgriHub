@@ -113,7 +113,7 @@ export const IrrigationPage: React.FC = () => {
               </span>
             </div>
 
-            <p style={{ fontSize: '0.96rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '16px' }}>
+            <p style={{ fontSize: '0.96rem', color: 'var(--text-heading)', lineHeight: 1.5, marginBottom: '16px' }}>
               {recommendation?.reason}
             </p>
 

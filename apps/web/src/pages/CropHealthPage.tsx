@@ -45,7 +45,7 @@ export const CropHealthPage: React.FC = () => {
               <select
                 value={selectedCrop}
                 onChange={(e) => setSelectedCrop(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff', fontSize: '0.9rem' }}
+                className="form-input"
               >
                 <option value="Soybean">Soybean (Glycine max)</option>
                 <option value="Cotton">Bt Cotton (Gossypium)</option>
@@ -92,7 +92,7 @@ export const CropHealthPage: React.FC = () => {
 
           {/* Diagnostic Guidelines Card */}
           <div className="glass-panel" style={{ padding: '20px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-            <h4 style={{ color: '#ffffff', fontWeight: 700, marginBottom: '8px' }}>Photography Tips for Accurate Results:</h4>
+            <h4 style={{ color: 'var(--text-heading)', fontWeight: 700, marginBottom: '8px' }}>Photography Tips for Accurate Results:</h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <li>• Focus closely on the boundary between green leaf and dark lesions.</li>
               <li>• Avoid intense direct flash or harsh sunlight glare.</li>
@@ -125,7 +125,7 @@ export const CropHealthPage: React.FC = () => {
 
               {/* Clinical Symptoms */}
               <div style={{ marginBottom: '22px' }}>
-                <h4 style={{ fontSize: '0.96rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>Observed Clinical Symptoms</h4>
+                <h4 style={{ fontSize: '0.96rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-heading)' }}>Observed Clinical Symptoms</h4>
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {diagnosis.clinicalSymptoms.map((s: string, idx: number) => (
                     <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.86rem', color: 'var(--text-main)' }}>
@@ -174,7 +174,7 @@ export const CropHealthPage: React.FC = () => {
           ) : (
             <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <ScanLine size={48} color="#10b981" style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '6px' }}>
                 No Active Leaf Specimen Analyzed Yet
               </h3>
               <p style={{ fontSize: '0.9rem', maxWidth: '460px', margin: '0 auto' }}>

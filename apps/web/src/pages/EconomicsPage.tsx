@@ -122,7 +122,7 @@ export const EconomicsPage: React.FC = () => {
                     <span className="badge badge-info">{e.category.replace('_', ' ')}</span>
                   </td>
                   <td style={{ padding: '12px 8px' }}>{e.notes || '—'}</td>
-                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, color: '#ffffff' }}>
+                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--text-heading)' }}>
                     ₹{e.amount?.toLocaleString('en-IN')}
                   </td>
                 </tr>
@@ -150,13 +150,13 @@ export const EconomicsPage: React.FC = () => {
             <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '16px' }}>Log New Expense</h3>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                <label className="form-label">
                   Category
                 </label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
+                  className="form-input"
                 >
                   <option value="FERTILIZERS">Fertilizers & Nutrients</option>
                   <option value="PESTICIDES">Pesticides & Crop Protection</option>
@@ -169,7 +169,7 @@ export const EconomicsPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                <label className="form-label">
                   Amount in ₹
                 </label>
                 <input
@@ -178,12 +178,12 @@ export const EconomicsPage: React.FC = () => {
                   value={newAmount}
                   onChange={(e) => setNewAmount(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
+                  className="form-input"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                <label className="form-label">
                   Notes & Details
                 </label>
                 <input
@@ -191,7 +191,7 @@ export const EconomicsPage: React.FC = () => {
                   placeholder="e.g. Bio-fungicide spray and labor"
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#ffffff' }}
+                  className="form-input"
                 />
               </div>
 

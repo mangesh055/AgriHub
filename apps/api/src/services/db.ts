@@ -105,6 +105,7 @@ export const db = {
             state: f.state || locMeta.state || '',
             locationName: f.location_name || locMeta.locationName || '',
             boundaryGeoJson: f.boundary_geojson,
+            cropAllocations: f.crop_allocations || locMeta.cropAllocations || [],
             notes: f.notes,
             createdAt: f.created_at,
             updatedAt: f.updated_at
@@ -132,7 +133,8 @@ export const db = {
           taluka: farm.taluka || '',
           district: farm.district || '',
           state: farm.state || '',
-          locationName: farm.locationName || ''
+          locationName: farm.locationName || '',
+          cropAllocations: farm.cropAllocations || []
         }
       };
 
@@ -173,6 +175,7 @@ export const db = {
           state: farm.state || locMeta.state || data.state,
           locationName: farm.locationName || locMeta.locationName || data.location_name,
           boundaryGeoJson: data.boundary_geojson,
+          cropAllocations: farm.cropAllocations || locMeta.cropAllocations || [],
           notes: data.notes,
           createdAt: data.created_at,
           updatedAt: data.updated_at
@@ -183,6 +186,30 @@ export const db = {
     }
     store.farms.set(farm.id, farm);
     return farm;
+  },
+
+  async deleteFarm(farmId: string): Promise<boolean> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('soil_records').delete().eq('farm_id', farmId);
+        await supabase.from('crop_cycles').delete().eq('farm_id', farmId);
+        await supabase.from('farm_expenses').delete().eq('farm_id', farmId);
+        await supabase.from('sensor_readings').delete().eq('farm_id', farmId);
+        const { error } = await supabase.from('farms').delete().eq('id', farmId);
+        if (error) {
+          console.error('❌ Supabase deleteFarm error:', error.message);
+        }
+      } catch (err) {
+        console.error('❌ Error during Supabase farm deletion:', err);
+      }
+    }
+    store.farms.delete(farmId);
+    store.soilRecords.delete(farmId);
+    store.cropCycles.delete(farmId);
+    store.expenses.delete(farmId);
+    store.telemetry.delete(farmId);
+    return true;
   },
 
   // 2. Soil Records

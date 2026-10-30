@@ -137,11 +137,20 @@ export const GeoPolygonSchema = z.object({
 });
 export type GeoPolygon = z.infer<typeof GeoPolygonSchema>;
 
+export const CropAllocationSchema = z.object({
+  cropName: z.string(),
+  allocatedAcres: z.number(),
+  season: z.string().optional(),
+  variety: z.string().optional()
+});
+export type CropAllocation = z.infer<typeof CropAllocationSchema>;
+
 export const CreateFarmRequestSchema = z.object({
   name: z.string().min(2, 'Farm name is required'),
   areaAcres: z.number().positive('Area must be greater than 0'),
   irrigationSource: z.string().min(1, 'At least one water source is required'),
   waterSources: z.array(z.string()).optional(),
+  cropAllocations: z.array(CropAllocationSchema).optional(),
   village: z.string().optional(),
   taluka: z.string().optional(),
   district: z.string().optional(),

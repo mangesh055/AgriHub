@@ -110,6 +110,12 @@ farmRouter.get('/:id', async (req: Request, res: Response) => {
   return res.json(farm);
 });
 
+farmRouter.delete('/:id', async (req: Request, res: Response) => {
+  const farmId = req.params.id;
+  await db.deleteFarm(farmId);
+  return res.json({ success: true, message: 'Farm holding successfully deleted' });
+});
+
 // 2. Soil Records
 farmRouter.get('/:farmId/soil-records', async (req: Request, res: Response) => {
   const records = await db.getSoilRecords(req.params.farmId);

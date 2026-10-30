@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Layers, FileText, CheckCircle2, Sprout, AlertCircle, Download } from 'lucide-react';
+import {
+  MapPin,
+  Plus,
+  Layers,
+  FileText,
+  CheckCircle2,
+  Sprout,
+  AlertCircle,
+  Download,
+  Trash2,
+  PieChart
+} from 'lucide-react';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +24,8 @@ export const FarmsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [ndviVisible, setNdviVisible] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function loadFarms(preferredId?: string) {
     try {
@@ -49,6 +62,21 @@ export const FarmsPage: React.FC = () => {
       setSoilRecords(soils);
     } catch (err) {
       setSoilRecords([]);
+    }
+  };
+
+  const handleDeleteFarm = async () => {
+    if (!deleteTarget) return;
+    try {
+      setIsDeleting(true);
+      await api.deleteFarm(deleteTarget.id);
+      setDeleteTarget(null);
+      await refreshAuth();
+      await loadFarms();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete farm plot');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -113,7 +141,7 @@ export const FarmsPage: React.FC = () => {
             {farms.length === 0 ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Sprout size={36} color="#34d399" style={{ margin: '0 auto 12px' }} />
-                <p style={{ fontWeight: 600, color: '#ffffff', marginBottom: '6px' }}>No Farm Holdings Registered</p>
+                <p style={{ fontWeight: 700, color: 'var(--text-heading)', marginBottom: '6px' }}>No Farm Holdings Registered</p>
                 <p style={{ fontSize: '0.82rem', marginBottom: '16px', lineHeight: 1.4 }}>
                   Add your agricultural plot with soil health test metrics to unlock custom IoT and AI capabilities.
                 </p>
@@ -139,13 +167,59 @@ export const FarmsPage: React.FC = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <h4 style={{ fontSize: '0.98rem', fontWeight: 700 }}>{f.name}</h4>
-                    <span className="badge badge-success">{f.areaAcres} Acres</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="badge badge-success">{f.areaAcres} Acres</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(f);
+                        }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#f87171',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'var(--transition-smooth)'
+                        }}
+                        title={`Delete holding: ${f.name}`}
+                        aria-label={`Delete ${f.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   {(f.village || f.district || f.locationName) && (
                     <p style={{ fontSize: '0.84rem', color: '#10b981', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MapPin size={13} />
                       <span>{f.locationName || [f.village, f.taluka, f.district, f.state].filter(Boolean).join(', ')}</span>
                     </p>
+                  )}
+                  {f.cropAllocations && f.cropAllocations.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', margin: '6px 0' }}>
+                      {f.cropAllocations.map((ca: any, i: number) => (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            color: '#34d399',
+                            fontWeight: 600
+                          }}
+                        >
+                          🌾 {ca.cropName}: {ca.allocatedAcres} Ac
+                        </span>
+                      ))}
+                    </div>
                   )}
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Irrigation: <strong>{f.irrigationSource}</strong> • GPS: {Number(f.latitude).toFixed(4)}°N, {Number(f.longitude).toFixed(4)}°E
@@ -267,19 +341,112 @@ export const FarmsPage: React.FC = () => {
                   </button>
                 )}
                 <button
-                    className="btn-secondary"
-                    style={{
-                      fontSize: '0.84rem',
-                      background: ndviVisible ? 'rgba(16,185,129,0.18)' : undefined,
-                      borderColor: ndviVisible ? '#10b981' : undefined,
-                      color: ndviVisible ? '#10b981' : undefined,
-                    }}
-                    onClick={() => setNdviVisible((v) => !v)}
-                  >
-                    <Layers size={14} />
-                    <span>{ndviVisible ? '✅ NDVI Layer ON' : 'Toggle NDVI Layer'}</span>
-                  </button>
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.84rem',
+                    background: ndviVisible ? 'rgba(16,185,129,0.18)' : undefined,
+                    borderColor: ndviVisible ? '#10b981' : undefined,
+                    color: ndviVisible ? '#10b981' : undefined,
+                  }}
+                  onClick={() => setNdviVisible((v) => !v)}
+                >
+                  <Layers size={14} />
+                  <span>{ndviVisible ? '✅ NDVI Layer ON' : 'Toggle NDVI Layer'}</span>
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.84rem',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                    color: '#f87171'
+                  }}
+                  onClick={() => setDeleteTarget(selectedFarm)}
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Plot</span>
+                </button>
               </div>
+
+              {/* Land Usage & Crop Allocation Breakdown Card */}
+              {selectedFarm?.cropAllocations && selectedFarm.cropAllocations.length > 0 && (
+                <div
+                  style={{
+                    marginTop: '20px',
+                    padding: '20px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                      <PieChart size={18} color="#10b981" />
+                      <span>Planned Land Usage & Crop Parcel Breakdown</span>
+                    </h4>
+                    <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                      Total Holding: <strong style={{ color: 'var(--text-heading)' }}>{selectedFarm.areaAcres} Acres</strong>
+                    </span>
+                  </div>
+
+                  {/* Segmented Visual Progress Bar */}
+                  <div style={{ height: '10px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '16px' }}>
+                    {selectedFarm.cropAllocations.map((ca: any, i: number) => {
+                      const acres = Number(ca.allocatedAcres) || 0;
+                      const total = Number(selectedFarm.areaAcres) || 1;
+                      const pct = Math.min(100, (acres / total) * 100);
+                      const colors = ['#10b981', '#38bdf8', '#fbbf24', '#a855f7', '#ec4899', '#f97316'];
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            background: colors[i % colors.length],
+                            transition: 'width 0.3s ease'
+                          }}
+                          title={`${ca.cropName}: ${acres} Ac (${pct.toFixed(1)}%)`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Crop Parcels Cards Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    {selectedFarm.cropAllocations.map((ca: any, i: number) => {
+                      const acres = Number(ca.allocatedAcres) || 0;
+                      const total = Number(selectedFarm.areaAcres) || 1;
+                      const pct = Math.round((acres / total) * 100);
+                      const colors = ['#10b981', '#38bdf8', '#fbbf24', '#a855f7', '#ec4899', '#f97316'];
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid var(--border-subtle)',
+                            borderLeft: `4px solid ${colors[i % colors.length]}`
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-heading)' }}>
+                              {ca.cropName}
+                            </span>
+                            <span className="badge badge-success" style={{ fontSize: '0.72rem', padding: '2px 7px' }}>
+                              {pct}% Land
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                            <strong style={{ color: colors[i % colors.length] }}>{acres} Acres</strong> {ca.season ? `• ${ca.season}` : ''}
+                            {ca.variety ? ` • ${ca.variety}` : ''}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div style={{ flex: 1, minHeight: '440px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: 'var(--text-muted)' }}>
@@ -290,6 +457,90 @@ export const FarmsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '20px'
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              padding: '28px',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(239, 68, 68, 0.25)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'rgba(239, 68, 68, 0.18)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ef4444'
+                }}
+              >
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-heading)' }}>
+                  Delete Farm Holding?
+                </h3>
+                <span style={{ fontSize: '0.74rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Irreversible Action
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '22px' }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--text-heading)' }}>"{deleteTarget.name}"</strong> ({deleteTarget.areaAcres} Acres)?
+              This will permanently remove its cadastral GIS boundaries, soil health test cards, and linked crop telemetry.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
+                }}
+                onClick={handleDeleteFarm}
+                disabled={isDeleting}
+              >
+                <Trash2 size={16} />
+                <span>{isDeleting ? 'Deleting Plot...' : 'Yes, Delete Plot'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Just-In-Time Farm Registration Modal */}
       <FarmRequiredModal

@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Phone, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
+import {
+  Sprout,
+  Lock,
+  Phone,
+  ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+  Droplets,
+  TrendingUp,
+  Bot
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
@@ -50,20 +61,34 @@ export const LoginPage: React.FC = () => {
         justifyContent: 'center',
         padding: '24px',
         background: 'var(--bg-app)',
-        position: 'relative'
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      {/* Background Neon Accent Glow */}
+      {/* Background Ambient Radial Halos */}
       <div
         style={{
           position: 'absolute',
-          top: '20%',
+          top: '15%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '500px',
+          width: '600px',
+          height: '500px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.16) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none'
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '10%',
+          right: '15%',
+          width: '400px',
           height: '400px',
           borderRadius: '50%',
-          background: 'rgba(16, 185, 129, 0.12)',
+          background: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%)',
           filter: 'blur(90px)',
           pointerEvents: 'none'
         }}
@@ -73,59 +98,92 @@ export const LoginPage: React.FC = () => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '440px',
-          padding: '36px',
+          maxWidth: '460px',
+          padding: '40px',
           position: 'relative',
           zIndex: 1,
-          border: '1px solid rgba(16, 185, 129, 0.3)'
+          border: '1px solid var(--border-active)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px -5px var(--color-primary-glow)'
         }}
       >
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '54px',
-              height: '54px',
+              width: '58px',
+              height: '58px',
               borderRadius: '16px',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.45)',
-              marginBottom: '14px'
+              boxShadow: '0 6px 24px rgba(16, 185, 129, 0.45)',
+              marginBottom: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <Sprout size={30} color="#ffffff" />
+            <Sprout size={32} color="#ffffff" />
           </div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>Welcome to AgriHub</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
+          <h2 style={{ fontSize: '1.95rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-heading)' }}>
+            Welcome to AgriHub
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
             Smart Agricultural Decision-Support System
           </p>
+        </div>
+
+        {/* Feature Badges Showcase */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginBottom: '24px'
+          }}
+        >
+          <span className="badge badge-success" style={{ textTransform: 'none', fontSize: '0.76rem' }}>
+            <Droplets size={12} /> IoT Irrigation
+          </span>
+          <span className="badge badge-info" style={{ textTransform: 'none', fontSize: '0.76rem' }}>
+            <TrendingUp size={12} /> Live Mandi Rates
+          </span>
+          <span className="badge badge-warning" style={{ textTransform: 'none', fontSize: '0.76rem' }}>
+            <Bot size={12} /> AI Agronomist
+          </span>
         </div>
 
         {error && (
           <div
             style={{
-              padding: '12px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: 'rgba(239, 68, 68, 0.14)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
               color: '#f87171',
-              fontSize: '0.86rem',
-              marginBottom: '18px'
+              fontSize: '0.88rem',
+              fontWeight: 600,
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}
           >
-            {error}
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
-            <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+            <label className="form-label">
               Mobile Number
             </label>
             <div style={{ position: 'relative' }}>
-              <Phone size={17} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+              <Phone
+                size={18}
+                color="var(--text-muted)"
+                style={{ position: 'absolute', left: '14px', top: '14px', pointerEvents: 'none' }}
+              />
               <input
                 type="tel"
                 placeholder="10-digit mobile (e.g. 9876543210)"
@@ -133,54 +191,59 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => setMobile(e.target.value)}
                 required
                 maxLength={10}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 42px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: '#ffffff',
-                  fontSize: '0.94rem'
-                }}
+                className="form-input"
+                style={{ paddingLeft: '44px' }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+            <label className="form-label">
               Password
             </label>
             <div style={{ position: 'relative' }}>
-              <Lock size={17} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+              <Lock
+                size={18}
+                color="var(--text-muted)"
+                style={{ position: 'absolute', left: '14px', top: '14px', pointerEvents: 'none' }}
+              />
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 42px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: '#ffffff',
-                  fontSize: '0.94rem'
-                }}
+                className="form-input"
+                style={{ paddingLeft: '44px' }}
               />
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '6px' }} disabled={loading}>
-            <span>{loading ? 'Logging in...' : 'Sign In to Dashboard'}</span>
-            <ArrowRight size={17} />
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ width: '100%', marginTop: '6px', padding: '13px', fontSize: '1rem', fontWeight: 700 }}
+            disabled={loading}
+          >
+            <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
+            <ArrowRight size={18} />
           </button>
         </form>
 
         {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '22px 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            margin: '24px 0',
+            color: 'var(--text-muted)',
+            fontSize: '0.82rem',
+            fontWeight: 600
+          }}
+        >
           <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-          <span>OR</span>
+          <span>FAST ACCESS</span>
           <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
         </div>
 
@@ -191,20 +254,21 @@ export const LoginPage: React.FC = () => {
           className="btn-secondary"
           style={{
             width: '100%',
-            borderColor: 'rgba(16, 185, 129, 0.4)',
-            background: 'rgba(16, 185, 129, 0.06)',
-            fontSize: '0.9rem'
+            borderColor: 'rgba(16, 185, 129, 0.45)',
+            background: 'rgba(16, 185, 129, 0.08)',
+            fontSize: '0.92rem',
+            padding: '12px'
           }}
           disabled={loading}
         >
-          <Sparkles size={16} color="#34d399" />
+          <Sparkles size={17} color="#34d399" />
           <span>1-Click Demo Login (Ramesh Patel)</span>
         </button>
 
         {/* Sign Up Link */}
-        <div style={{ textAlign: 'center', marginTop: '22px', fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
           Don't have an account yet?{' '}
-          <Link to="/register" style={{ color: '#10b981', fontWeight: 700 }}>
+          <Link to="/register" style={{ color: 'var(--color-primary-light)', fontWeight: 700 }}>
             Register as a Farmer
           </Link>
         </div>

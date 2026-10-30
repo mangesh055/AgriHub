@@ -12,7 +12,11 @@ import {
   Sparkles,
   Sliders,
   DollarSign,
-  MapPin
+  MapPin,
+  ChevronRight,
+  Activity,
+  Layers,
+  CheckCircle2
 } from 'lucide-react';
 import { api } from '../api/client';
 import { UnifiedHeroCard } from '../components/UnifiedHeroCard';
@@ -86,44 +90,71 @@ export const DashboardPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <div style={{ display: 'inline-block', width: '32px', height: '32px', border: '3px solid rgba(16, 185, 129, 0.2)', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-        <p style={{ marginTop: '16px', fontWeight: 600 }}>Synthesizing field sensors, weather forecasts, and market trends...</p>
+      <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+        <div
+          style={{
+            width: '44px',
+            height: '44px',
+            border: '3px solid rgba(16, 185, 129, 0.2)',
+            borderTopColor: '#10b981',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }}
+        />
+        <p style={{ marginTop: '20px', fontWeight: 600, fontSize: '0.96rem', letterSpacing: '-0.01em', color: 'var(--text-main)' }}>
+          Synthesizing field telemetry, satellite imagery, and market prices...
+        </p>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '28px' }}>
+    <div style={{ maxWidth: '1680px', margin: '0 auto', padding: '32px' }}>
+      
       {/* 0. Welcome Banner if No Farm Registered */}
       {!hasFarm && !selectedFarm && (
-        <section style={{ marginBottom: '24px' }}>
+        <section style={{ marginBottom: '28px' }}>
           <div
             className="glass-panel"
             style={{
-              padding: '24px',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
+              padding: '28px 32px',
+              border: '1.5px solid rgba(16, 185, 129, 0.45)',
               background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--bg-card) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '16px'
+              gap: '20px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sprout size={26} color="#34d399" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
+                }}
+              >
+                <Sprout size={28} color="#ffffff" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Welcome, {profile?.name || 'Farmer'}!</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '2px', maxWidth: '750px' }}>
-                  Your dashboard is ready! You can check Mandi prices and weather forecasts anytime. When you are ready, enter your farm and soil details to unlock automated IoT irrigation decisions and AI crop planning.
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800 }}>Welcome, {profile?.name || 'Farmer'}!</h3>
+                  <span className="badge badge-success">Platform Active</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px', maxWidth: '820px', lineHeight: 1.5 }}>
+                  Your AgriHub dashboard is online. Check live Mandi wholesale rates and local weather anytime. Connect your farm plot coordinates and soil parameters to unlock automated IoT irrigation decisions and AI agronomic alerts.
                 </p>
               </div>
             </div>
             <button
               className="btn-primary"
+              style={{ padding: '12px 24px', fontSize: '0.95rem' }}
               onClick={() => {
                 setModalFeature({
                   name: 'Farm Plot Setup',
@@ -133,7 +164,7 @@ export const DashboardPage: React.FC = () => {
               }}
             >
               <Sprout size={18} />
-              <span>Enter Farm Details</span>
+              <span>Connect Farm Plot</span>
             </button>
           </div>
         </section>
@@ -141,27 +172,38 @@ export const DashboardPage: React.FC = () => {
 
       {/* 0B. Dynamic My Farm Plot & Soil Health Summary Ribbon */}
       {selectedFarm && (
-        <section style={{ marginBottom: '24px' }}>
+        <section style={{ marginBottom: '28px' }}>
           <div
             className="glass-panel"
             style={{
-              padding: '20px 24px',
+              padding: '22px 28px',
               border: '1px solid rgba(16, 185, 129, 0.35)',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-card) 100%)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-card) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '16px'
+              gap: '18px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  background: 'rgba(16, 185, 129, 0.18)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                }}
+              >
                 <MapPin size={24} color="#34d399" />
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff' }}>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                     {selectedFarm.name}
                   </h3>
                   <span className="badge badge-success">{selectedFarm.areaAcres} Acres</span>
@@ -174,12 +216,12 @@ export const DashboardPage: React.FC = () => {
                         if (f) setSelectedFarm(f);
                       }}
                       style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        background: '#131e15',
-                        border: '1px solid var(--border-subtle)',
-                        color: '#34d399',
-                        fontSize: '0.8rem',
+                        padding: '5px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-card-hover)',
+                        border: '1px solid var(--border-active)',
+                        color: 'var(--color-primary-light)',
+                        fontSize: '0.82rem',
                         fontWeight: 600,
                         cursor: 'pointer'
                       }}
@@ -192,28 +234,49 @@ export const DashboardPage: React.FC = () => {
                     </select>
                   )}
                 </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: '4px' }}>
                   Centroid: {Number(selectedFarm.latitude).toFixed(4)}°N, {Number(selectedFarm.longitude).toFixed(4)}°E • 
                   Soil: <strong style={{ color: '#38bdf8' }}>{soilRecord?.soilType?.replace('_', ' ') || 'Black Cotton'} (pH {soilRecord?.ph || 7.2})</strong>
                   {soilRecord ? ` • NPK: ${soilRecord.nitrogen}/${soilRecord.phosphorus}/${soilRecord.potassium}` : ' • Cadastral Plot Verified'}
                 </p>
+                {selectedFarm.cropAllocations && selectedFarm.cropAllocations.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Planned Land Usage:</span>
+                    {selectedFarm.cropAllocations.map((ca: any, i: number) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: '0.74rem',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          color: '#34d399',
+                          fontWeight: 600
+                        }}
+                      >
+                        🌾 {ca.cropName}: {ca.allocatedAcres} Ac
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 className="btn-secondary"
-                style={{ fontSize: '0.84rem', padding: '8px 14px' }}
+                style={{ fontSize: '0.86rem', padding: '9px 16px' }}
                 onClick={() => navigate('/farms')}
               >
                 <MapPin size={15} color="#34d399" />
-                <span>My Farm GIS & Soil Details</span>
+                <span>Cadastral GIS & Soil</span>
                 <ArrowUpRight size={14} />
               </button>
 
               <button
                 className="btn-secondary"
-                style={{ fontSize: '0.84rem', padding: '8px 14px' }}
+                style={{ fontSize: '0.86rem', padding: '9px 16px' }}
                 onClick={() => {
                   setModalFeature({
                     name: 'Register Additional Farm Plot',
@@ -231,24 +294,35 @@ export const DashboardPage: React.FC = () => {
 
       {/* 1. Unified Directive Hero Banner */}
       {unifiedAction && (
-        <section style={{ marginBottom: '28px' }}>
+        <section style={{ marginBottom: '32px' }}>
           <UnifiedHeroCard action={unifiedAction} />
         </section>
       )}
 
       {/* 2. Four Master Telemetry Cards */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '22px', marginBottom: '32px' }}>
         
         {/* Card A: Soil Moisture & Smart Irrigation */}
-        <div className="glass-panel" style={{ padding: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Droplets size={20} color="#38bdf8" />
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'rgba(14, 165, 233, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(14, 165, 233, 0.3)'
+                }}
+              >
+                <Droplets size={22} color="#38bdf8" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Soil & IoT Irrigation</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Soil & IoT Irrigation</h3>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                   {selectedFarm ? `Node: ESP32-${selectedFarm.name.slice(0, 10).replace(/\s+/g, '-').toUpperCase()}` : 'No Sensor Node Linked'}
                 </span>
               </div>
@@ -258,25 +332,26 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: selectedFarm ? '#38bdf8' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '2.8rem', fontWeight: 800, color: selectedFarm ? '#38bdf8' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
               {selectedFarm && telemetry?.soilMoisturePct != null ? `${telemetry.soilMoisturePct}%` : '--%'}
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Volumetric Moisture</span>
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Volumetric Moisture</span>
           </div>
 
-          <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
             <div
               style={{
                 width: selectedFarm ? `${telemetry?.soilMoisturePct ?? 0}%` : '0%',
                 height: '100%',
                 background: 'linear-gradient(90deg, #38bdf8, #0284c7)',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                transition: 'width 0.6s ease'
               }}
             />
           </div>
 
-          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '20px' }}>
             {selectedFarm
               ? (irrigation?.reason || 'Soil moisture is in optimal retention zone.')
               : 'Register your farm plot to link ESP32 capacitance soil sensors and get automated drip recommendations.'}
@@ -284,7 +359,7 @@ export const DashboardPage: React.FC = () => {
 
           <button
             className="btn-secondary"
-            style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.86rem' }}
             onClick={() => {
               if (!selectedFarm) {
                 setModalFeature({
@@ -298,20 +373,31 @@ export const DashboardPage: React.FC = () => {
             }}
           >
             <span>{selectedFarm ? 'Telemetry & Drip Controls' : 'Connect Farm & Sensors'}</span>
-            <ArrowUpRight size={14} />
+            <ArrowUpRight size={15} />
           </button>
         </div>
 
-        {/* Card B: Hyperlocal Weather & Hazards */}
-        <div className="glass-panel" style={{ padding: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CloudSun size={20} color="#fbbf24" />
+        {/* Card B: Hyperlocal Weather & Climate */}
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(245, 158, 11, 0.3)'
+                }}
+              >
+                <CloudSun size={22} color="#fbbf24" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Hyperlocal Weather</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Hyperlocal Weather</h3>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                   {selectedFarm
                     ? `${selectedFarm.name} (${Number(selectedFarm.latitude).toFixed(2)}°N, ${Number(selectedFarm.longitude).toFixed(2)}°E)`
                     : `${profile?.district || 'Regional'}, ${profile?.state || 'India'}`}
@@ -325,43 +411,54 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '2.8rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
               {weather?.temperatureC ?? 28.5}°C
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Humidity: {weather?.humidityPct ?? 72}%</span>
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Humidity: {weather?.humidityPct ?? 72}%</span>
           </div>
 
-          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '8px' }}>
             {weather?.weatherDescription || 'Agricultural Weather Forecast'}
           </p>
 
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.4 }}>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.5 }}>
             Wind: {weather?.windSpeedKph ?? 14} km/h • Rain Prob: {weather?.rainProbabilityPct ?? 25}% • Hyperlocal grid
           </p>
 
           <button
             className="btn-secondary"
-            style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.86rem' }}
             onClick={() => navigate('/weather')}
           >
             <span>7-Day Agricultural Forecast</span>
-            <ArrowUpRight size={14} />
+            <ArrowUpRight size={15} />
           </button>
         </div>
 
         {/* Card C: Active Crop Cycle Progress */}
-        <div className="glass-panel" style={{ padding: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sprout size={20} color="#34d399" />
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                }}
+              >
+                <Sprout size={22} color="#34d399" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
                   {cropCycle?.cropName || (selectedFarm ? 'No Sown Crop' : 'No Crop Cycle')}
                 </h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                   {cropCycle ? `${cropCycle.variety || 'Active Variety'} • Sown ${cropCycle.sowingDate || 'Recently'}` : (selectedFarm ? 'No active sowing recorded' : 'Farm registration pending')}
                 </span>
               </div>
@@ -371,27 +468,28 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: cropCycle ? '#34d399' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '2.8rem', fontWeight: 800, color: cropCycle ? '#34d399' : 'var(--text-muted)', letterSpacing: '-0.03em' }}>
               {cropCycle ? `Day ${cropCycle.daysSinceSowing || 45}` : 'Day --'}
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
               {cropCycle ? `of ${cropCycle.expectedDurationDays || 90} Days to Harvest` : 'No active crop timeline'}
             </span>
           </div>
 
-          <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
             <div
               style={{
                 width: cropCycle ? `${Math.min(100, Math.round(((cropCycle.daysSinceSowing || 45) / (cropCycle.expectedDurationDays || 90)) * 100))}%` : '0%',
                 height: '100%',
                 background: 'linear-gradient(90deg, #10b981, #34d399)',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                transition: 'width 0.6s ease'
               }}
             />
           </div>
 
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '20px' }}>
             {cropCycle
               ? `${cropCycle.currentStage} window. Critical scouting and nutrition phase.`
               : 'Add your farm and select a Kharif/Rabi crop to monitor phenological growth stages and projected harvest dates.'}
@@ -399,7 +497,7 @@ export const DashboardPage: React.FC = () => {
 
           <button
             className="btn-secondary"
-            style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.86rem' }}
             onClick={() => {
               if (!selectedFarm) {
                 setModalFeature({
@@ -412,21 +510,32 @@ export const DashboardPage: React.FC = () => {
               }
             }}
           >
-            <span>{cropCycle ? 'Scan Leaf for Disease' : 'Plan First Crop Cycle'}</span>
-            <ArrowUpRight size={14} />
+            <span>{cropCycle ? 'View Phenology & Plan' : 'Plan First Crop Cycle'}</span>
+            <ArrowUpRight size={15} />
           </button>
         </div>
 
         {/* Card D: APMC Mandi & Economics */}
-        <div className="glass-panel" style={{ padding: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <TrendingUp size={20} color="#fbbf24" />
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(245, 158, 11, 0.3)'
+                }}
+              >
+                <TrendingUp size={22} color="#fbbf24" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Mandi & Economics</h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Mandi & Economics</h3>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                   Nearest: {profile?.district || 'Pune'} APMC
                 </span>
               </div>
@@ -436,18 +545,18 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '2.8rem', fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.03em' }}>
               ₹{market?.currentModalPrice ?? 4850}
             </span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>/ Quintal (Soybean Modal)</span>
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>/ Q (Soybean Modal)</span>
           </div>
 
-          <p style={{ fontSize: '0.86rem', color: '#10b981', fontWeight: 600, marginBottom: '6px' }}>
+          <p style={{ fontSize: '0.88rem', color: '#10b981', fontWeight: 700, marginBottom: '6px' }}>
             Forecast 7D: ₹{market?.forecastPrice7Days ?? 5130}/Q (+₹280/Q gain)
           </p>
 
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '16px' }}>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '20px' }}>
             {selectedFarm && profit?.netProfitProjected != null
               ? `Projected Farm Profit: ₹${profit.netProfitProjected.toLocaleString('en-IN')} (${profit.roiPercentage ?? 0}% ROI)`
               : 'Projected Farm Profit: ₹0 (No farm plot registered yet)'}
@@ -455,25 +564,41 @@ export const DashboardPage: React.FC = () => {
 
           <button
             className="btn-secondary"
-            style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.86rem' }}
             onClick={() => navigate('/market')}
           >
             <span>Compare Mandis & Logistics</span>
-            <ArrowUpRight size={14} />
+            <ArrowUpRight size={15} />
           </button>
         </div>
 
       </section>
 
-      {/* 3. Quick Action Ribbon */}
-      <section className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+      {/* 3. Quick Action Hub */}
+      <section
+        className="glass-panel"
+        style={{
+          padding: '24px 30px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '20px'
+        }}
+      >
         <div>
-          <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Quick Field Actions</h4>
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Frequently used decision workflows for today</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 800 }}>Quick Field Actions</h4>
+            <span className="badge badge-success">One-Click</span>
+          </div>
+          <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+            Frequently used agronomic decision workflows for today
+          </span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
           <button
             className="btn-secondary"
+            style={{ padding: '10px 16px', fontSize: '0.88rem' }}
             onClick={() => {
               if (!hasFarm) {
                 setModalFeature({
@@ -486,12 +611,13 @@ export const DashboardPage: React.FC = () => {
               }
             }}
           >
-            <ScanLine size={16} color="#34d399" />
+            <ScanLine size={17} color="#34d399" />
             <span>Diagnose Leaf Disease</span>
           </button>
 
           <button
             className="btn-secondary"
+            style={{ padding: '10px 16px', fontSize: '0.88rem' }}
             onClick={() => {
               if (!hasFarm) {
                 setModalFeature({
@@ -504,17 +630,22 @@ export const DashboardPage: React.FC = () => {
               }
             }}
           >
-            <Sliders size={16} color="#38bdf8" />
+            <Sliders size={17} color="#38bdf8" />
             <span>Test Moisture Simulator</span>
           </button>
 
-          <button className="btn-secondary" onClick={() => navigate('/assistant')}>
-            <Sparkles size={16} color="#fbbf24" />
+          <button
+            className="btn-secondary"
+            style={{ padding: '10px 16px', fontSize: '0.88rem' }}
+            onClick={() => navigate('/assistant')}
+          >
+            <Sparkles size={17} color="#fbbf24" />
             <span>Ask Agronomist AI</span>
           </button>
 
           <button
             className="btn-secondary"
+            style={{ padding: '10px 16px', fontSize: '0.88rem' }}
             onClick={() => {
               if (!hasFarm) {
                 setModalFeature({
@@ -527,7 +658,7 @@ export const DashboardPage: React.FC = () => {
               }
             }}
           >
-            <DollarSign size={16} color="#10b981" />
+            <DollarSign size={17} color="#10b981" />
             <span>Log Input Expense</span>
           </button>
         </div>

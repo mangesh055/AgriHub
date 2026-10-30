@@ -1,9 +1,41 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Sprout, FileText, ArrowRight, Upload, CheckCircle2, RefreshCw, FileCheck, Navigation, Map } from 'lucide-react';
+import {
+  MapPin,
+  Sprout,
+  FileText,
+  ArrowRight,
+  Upload,
+  CheckCircle2,
+  RefreshCw,
+  FileCheck,
+  Navigation,
+  Map,
+  PieChart,
+  Plus,
+  Trash2,
+  AlertTriangle
+} from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
+
+const POPULAR_CROPS = [
+  { id: 'Soybean', label: 'Soybean (सोयाबीन)' },
+  { id: 'Cotton', label: 'Bt Cotton (कापूस)' },
+  { id: 'Sugarcane', label: 'Sugarcane (ऊस)' },
+  { id: 'Onion', label: 'Onion (कांदा)' },
+  { id: 'Wheat', label: 'Wheat (गहू)' },
+  { id: 'Gram', label: 'Gram / Harbara (हरभरा)' },
+  { id: 'Maize', label: 'Maize / Fodder (मका / चारा)' },
+  { id: 'Paddy', label: 'Paddy / Rice (भात)' },
+  { id: 'Groundnut', label: 'Groundnut (भुईमूग)' },
+  { id: 'Tur', label: 'Pigeon Pea / Tur (तूर)' },
+  { id: 'Tomato', label: 'Tomato & Veg (भाजीपाला)' },
+  { id: 'Pomegranate', label: 'Pomegranate (डाळिंब)' },
+  { id: 'Fallow', label: 'Fallow / Grazing (पडिक जमीन)' },
+  { id: 'Other', label: 'Other Crop (इतर पीक)' }
+];
 
 const WATER_SOURCE_OPTIONS = [
   { id: 'CANAL', label: 'Canal (Nira Left Bank Canal Flow)' },
@@ -85,6 +117,42 @@ export const FarmOnboardingPage: React.FC = () => {
   const [error, setError] = useState('');
   const [boundaryPoints, setBoundaryPoints] = useState<LatLng[]>([]);
   const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<object | null>(null);
+
+  // Crop Land Allocation (Planned land usage breakdown)
+  const [cropAllocations, setCropAllocations] = useState<Array<{
+    cropName: string;
+    allocatedAcres: string;
+    season: string;
+    variety?: string;
+  }>>([
+    { cropName: 'Soybean', allocatedAcres: '4.0', season: 'KHARIF', variety: 'JS-335' }
+  ]);
+
+  const totalAcres = parseFloat(farmData.areaAcres) || 0;
+  const allocatedTotal = cropAllocations.reduce((sum, c) => sum + (parseFloat(c.allocatedAcres) || 0), 0);
+  const remainingAcres = Number((totalAcres - allocatedTotal).toFixed(2));
+  const isOverAllocated = allocatedTotal > totalAcres;
+
+  function addCropAllocation() {
+    const remaining = Math.max(0, Number((totalAcres - allocatedTotal).toFixed(2)));
+    setCropAllocations((prev) => [
+      ...prev,
+      { cropName: 'Cotton', allocatedAcres: remaining > 0 ? String(remaining) : '1.0', season: 'KHARIF', variety: '' }
+    ]);
+  }
+
+  function removeCropAllocation(index: number) {
+    if (cropAllocations.length <= 1) return;
+    setCropAllocations((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateCropAllocation(index: number, field: string, value: string) {
+    setCropAllocations((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
 
   function toggleWaterSource(id: string) {
     setFarmData((prev) => {
@@ -235,12 +303,20 @@ export const FarmOnboardingPage: React.FC = () => {
       const irrigationJoined = farmData.waterSources.join(', ') || 'DRIP';
       const locationFull = [farmData.village, farmData.taluka, farmData.district, farmData.state].filter(Boolean).join(', ');
 
+      const parsedAllocations = cropAllocations.map((c) => ({
+        cropName: c.cropName,
+        allocatedAcres: parseFloat(c.allocatedAcres) || 0,
+        season: c.season || 'KHARIF',
+        variety: c.variety?.trim() || undefined
+      }));
+
       // 1. Create Farm Plot
       const createdFarm = await api.createFarm({
         name: farmData.name.trim() || 'My Farm Plot',
         areaAcres: parseFloat(farmData.areaAcres) || 1.0,
         irrigationSource: irrigationJoined,
         waterSources: farmData.waterSources,
+        cropAllocations: parsedAllocations,
         village: farmData.village.trim(),
         taluka: farmData.taluka.trim(),
         district: farmData.district.trim(),
@@ -377,7 +453,168 @@ export const FarmOnboardingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 2: Farm Location & Regional Geography */}
+          {/* Section 1B: Planned Land Usage & Crop Allocation */}
+          <div style={{ padding: '24px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                  <PieChart size={20} color="#10b981" />
+                  <span>2. Planned Land Usage & Crop Allocation</span>
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Specify how many acres out of your total land will be used for each crop.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: '0.84rem', padding: '6px 14px' }}
+                onClick={addCropAllocation}
+              >
+                <Plus size={15} color="#10b981" />
+                <span>+ Add Crop Parcel</span>
+              </button>
+            </div>
+
+            {/* Real-time Visual Allocation Progress Meter */}
+            <div style={{ marginBottom: '18px', padding: '14px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.86rem' }}>
+                <span>
+                  Total Farm Land: <strong>{totalAcres} Acres</strong>
+                </span>
+                <span>
+                  Allocated: <strong style={{ color: isOverAllocated ? '#ef4444' : '#10b981' }}>{allocatedTotal.toFixed(2)} Ac</strong>
+                  {remainingAcres > 0 && <span style={{ color: 'var(--text-muted)' }}> ({remainingAcres.toFixed(2)} Ac unallocated)</span>}
+                </span>
+              </div>
+
+              {/* Segmented multi-color allocation progress bar */}
+              <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                {cropAllocations.map((c, i) => {
+                  const acres = parseFloat(c.allocatedAcres) || 0;
+                  const pct = totalAcres > 0 ? (acres / totalAcres) * 100 : 0;
+                  const colors = ['#10b981', '#38bdf8', '#fbbf24', '#a855f7', '#ec4899', '#f97316'];
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        width: `${pct}%`,
+                        height: '100%',
+                        background: colors[i % colors.length],
+                        transition: 'width 0.3s ease'
+                      }}
+                      title={`${c.cropName}: ${acres} Ac (${pct.toFixed(1)}%)`}
+                    />
+                  );
+                })}
+              </div>
+
+              {isOverAllocated && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontSize: '0.82rem', marginTop: '8px', fontWeight: 600 }}>
+                  <AlertTriangle size={15} />
+                  <span>Warning: Allocated crop land ({allocatedTotal.toFixed(2)} Ac) exceeds total farm area ({totalAcres} Ac)!</span>
+                </div>
+              )}
+            </div>
+
+            {/* Crop Allocation Row Inputs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {cropAllocations.map((c, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(100px, 1fr) minmax(110px, 1fr) minmax(110px, 1.2fr) 36px',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div>
+                    <label className="form-label-muted">Crop Name</label>
+                    <select
+                      className="form-input"
+                      value={c.cropName}
+                      onChange={(e) => updateCropAllocation(idx, 'cropName', e.target.value)}
+                    >
+                      {POPULAR_CROPS.map((crop) => (
+                        <option key={crop.id} value={crop.id}>
+                          {crop.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label-muted">Allocated Land (Ac)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="form-input"
+                      placeholder="e.g. 2.5"
+                      value={c.allocatedAcres}
+                      onChange={(e) => updateCropAllocation(idx, 'allocatedAcres', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label-muted">Season</label>
+                    <select
+                      className="form-input"
+                      value={c.season}
+                      onChange={(e) => updateCropAllocation(idx, 'season', e.target.value)}
+                    >
+                      <option value="KHARIF">Kharif (पावसाळी)</option>
+                      <option value="RABI">Rabi (हिवाळी)</option>
+                      <option value="ZAID">Summer / Zaid (उन्हाळी)</option>
+                      <option value="ANNUAL">Annual / Cash (वार्षिक)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label-muted">Variety / Hybrid (Opt)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. JS-335 / Phule"
+                      value={c.variety || ''}
+                      onChange={(e) => updateCropAllocation(idx, 'variety', e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ paddingTop: '18px' }}>
+                    {cropAllocations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCropAllocation(idx)}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#f87171',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                        title="Remove crop parcel"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3: Farm Location & Regional Geography */}
           <div style={{ padding: '24px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>

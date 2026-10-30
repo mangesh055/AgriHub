@@ -26,9 +26,38 @@ import { ProfilePage } from './pages/ProfilePage';
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
     <Navbar />
-    <main style={{ flex: 1 }}>{children}</main>
-    <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '16px 28px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
-      AgriHub Unified Agricultural Decision-Support System • Built for Indian Agriculture
+    <main style={{ flex: 1, paddingBottom: '32px' }}>{children}</main>
+    <footer
+      style={{
+        borderTop: '1px solid var(--border-subtle)',
+        padding: '22px 32px',
+        background: 'var(--bg-header)',
+        backdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        fontSize: '0.84rem',
+        color: 'var(--text-muted)',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>AgriHub Intelligence</span>
+        <span>•</span>
+        <span>Unified Agricultural Decision-Support System</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <span className="live-pulse-dot" />
+          <span>Telemetry & Mandi Feeds Online</span>
+        </span>
+        <span style={{ color: 'var(--text-subtle)', fontSize: '0.78rem' }}>v2.4 Enterprise</span>
+      </div>
     </footer>
   </div>
 );

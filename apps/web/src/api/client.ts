@@ -52,6 +52,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(farm)
     }),
+  deleteFarm: (id: string) =>
+    apiRequest<{ success: boolean; message: string }>(`/farms/${id}`, {
+      method: 'DELETE'
+    }),
 
   // Soil & Crops
   getSoilRecords: (farmId: string) => apiRequest<any[]>(`/farms/${farmId}/soil-records`),

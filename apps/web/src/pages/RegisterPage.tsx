@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sprout, Phone, Lock, User, ArrowRight } from 'lucide-react';
+import { Sprout, Phone, Lock, User, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const RegisterPage: React.FC = () => {
@@ -53,40 +53,60 @@ export const RegisterPage: React.FC = () => {
         justifyContent: 'center',
         padding: '24px',
         background: 'var(--bg-app)',
-        position: 'relative'
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
+      {/* Background Ambient Radial Halos */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '15%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '600px',
+          height: '500px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.16) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none'
+        }}
+      />
+
       <div
         className="glass-panel"
         style={{
           width: '100%',
           maxWidth: '460px',
-          padding: '36px',
+          padding: '40px',
+          position: 'relative',
+          zIndex: 1,
           border: '1px solid var(--border-active)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)'
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px -5px var(--color-primary-glow)'
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '54px',
-              height: '54px',
+              width: '58px',
+              height: '58px',
               borderRadius: '16px',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              marginBottom: '12px',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.35)'
+              marginBottom: '16px',
+              boxShadow: '0 6px 24px rgba(16, 185, 129, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <Sprout size={30} color="#ffffff" />
+            <Sprout size={32} color="#ffffff" />
           </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-heading)' }}>
+          <h2 style={{ fontSize: '1.95rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-heading)' }}>
             Farmer Signup
           </h2>
-          <p style={{ color: 'var(--text-main)', fontSize: '0.88rem', marginTop: '4px' }}>
-            Create your account with your name, mobile, and password.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+            Join thousands of smart farmers boosting yield and profit
           </p>
         </div>
 
@@ -95,12 +115,12 @@ export const RegisterPage: React.FC = () => {
             style={{
               padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
-              background: 'rgba(239, 68, 68, 0.15)',
+              background: 'rgba(239, 68, 68, 0.14)',
               border: '1px solid rgba(239, 68, 68, 0.35)',
               color: '#f87171',
               fontSize: '0.88rem',
               fontWeight: 600,
-              marginBottom: '18px'
+              marginBottom: '20px'
             }}
           >
             {error}
@@ -113,7 +133,7 @@ export const RegisterPage: React.FC = () => {
               Full Name <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
-              <User size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+              <User size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px', pointerEvents: 'none' }} />
               <input
                 type="text"
                 placeholder="e.g. Ramesh Patel"
@@ -121,7 +141,7 @@ export const RegisterPage: React.FC = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '44px' }}
               />
             </div>
           </div>
@@ -131,9 +151,9 @@ export const RegisterPage: React.FC = () => {
               Mobile Number (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
-              <Phone size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+              <Phone size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px', pointerEvents: 'none' }} />
               <input
-                type="text"
+                type="tel"
                 inputMode="numeric"
                 placeholder="e.g. 9876543210"
                 className="form-input"
@@ -144,7 +164,7 @@ export const RegisterPage: React.FC = () => {
                 }}
                 required
                 maxLength={10}
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '44px' }}
               />
             </div>
           </div>
@@ -154,7 +174,7 @@ export const RegisterPage: React.FC = () => {
               Password <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
-              <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+              <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px', pointerEvents: 'none' }} />
               <input
                 type="password"
                 placeholder="Min 6 characters"
@@ -163,7 +183,7 @@ export const RegisterPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 minLength={6}
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '44px' }}
               />
             </div>
           </div>
@@ -179,9 +199,9 @@ export const RegisterPage: React.FC = () => {
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '22px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: '#10b981', fontWeight: 700 }}>
+          <Link to="/login" style={{ color: 'var(--color-primary-light)', fontWeight: 700 }}>
             Sign In
           </Link>
         </div>

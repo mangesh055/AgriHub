@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Sparkles } from 'lucide-react';
+import { Bot, Send, User, Sparkles, MessageSquare, Zap } from 'lucide-react';
 import { api } from '../api/client';
 
 interface Message {
@@ -58,17 +58,37 @@ export const AssistantPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '28px', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <Sparkles size={18} color="#10b981" />
-          <span style={{ fontSize: '0.8rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 700 }}>
-            Ground-Truth Contextual Agronomy
-          </span>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Header */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 10px',
+              borderRadius: 'var(--radius-full)',
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: 'var(--color-primary-light)',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em'
+            }}
+          >
+            <Sparkles size={13} color="#10b981" />
+            <span>Ground-Truth Contextual Agronomy</span>
+          </div>
+          <span className="live-pulse-dot" />
         </div>
-        <h2 style={{ fontSize: '1.6rem', fontWeight: 800 }}>AI Agricultural Decision Assistant</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>
-          Answers agronomic questions using your real-time sensor metrics, weather forecast, and market prices.
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-heading)' }}>
+          AI Agricultural Decision Assistant
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          Answers agronomic questions using your real-time sensor metrics, weather forecasts, and wholesale mandi price intelligence.
         </p>
       </div>
 
@@ -77,12 +97,13 @@ export const AssistantPage: React.FC = () => {
         className="glass-panel"
         style={{
           flex: 1,
-          padding: '20px',
+          padding: '24px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
-          marginBottom: '16px'
+          gap: '18px',
+          marginBottom: '16px',
+          border: '1px solid var(--border-card)'
         }}
       >
         {messages.map((m, idx) => (
@@ -92,67 +113,105 @@ export const AssistantPage: React.FC = () => {
               display: 'flex',
               gap: '12px',
               alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '85%'
+              maxWidth: '82%'
             }}
           >
             {m.role === 'assistant' && (
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Bot size={18} color="#ffffff" />
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <Bot size={20} color="#ffffff" />
               </div>
             )}
 
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '14px',
-                background: m.role === 'user' ? '#10b981' : 'rgba(255, 255, 255, 0.05)',
+                padding: '16px 20px',
+                borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                background: m.role === 'user'
+                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                  : 'var(--bg-card-hover)',
                 color: m.role === 'user' ? '#ffffff' : 'var(--text-main)',
-                fontSize: '0.92rem',
-                lineHeight: 1.6,
+                fontSize: '0.93rem',
+                lineHeight: 1.65,
                 border: m.role === 'user' ? 'none' : '1px solid var(--border-subtle)',
-                whiteSpace: 'pre-line'
+                whiteSpace: 'pre-line',
+                boxShadow: m.role === 'user' ? '0 4px 16px rgba(16, 185, 129, 0.3)' : 'var(--shadow-sm)'
               }}
             >
               {m.content}
             </div>
 
             {m.role === 'user' && (
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <User size={18} color="#ffffff" />
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '12px',
+                  background: 'var(--bg-card-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <User size={18} color="var(--color-primary-light)" />
               </div>
             )}
           </div>
         ))}
+
         {loading && (
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={14} color="#ffffff" />
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                animation: 'pulse 1.5s infinite'
+              }}
+            >
+              <Bot size={18} color="#ffffff" />
             </div>
-            <span>Checking weather forecast and soil telemetry...</span>
+            <span>Checking weather forecast, soil moisture telemetry, and crop phenology...</span>
           </div>
         )}
         <div ref={chatEndRef} />
       </div>
 
       {/* Suggested Question Chips */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '14px', paddingBottom: '4px' }}>
         {promptChips.map((chip, i) => (
           <button
             key={i}
             onClick={() => handleSend(chip)}
+            className="btn-secondary"
             style={{
-              padding: '6px 12px',
+              padding: '7px 14px',
               borderRadius: 'var(--radius-full)',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-muted)',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
+              fontSize: '0.82rem',
               whiteSpace: 'nowrap',
-              transition: 'var(--transition-smooth)'
+              gap: '6px'
             }}
           >
-            {chip}
+            <Zap size={13} color="#fbbf24" />
+            <span>{chip}</span>
           </button>
         ))}
       </div>
@@ -163,24 +222,22 @@ export const AssistantPage: React.FC = () => {
           e.preventDefault();
           handleSend();
         }}
-        style={{ display: 'flex', gap: '10px' }}
+        style={{ display: 'flex', gap: '12px' }}
       >
         <input
           type="text"
           placeholder="Ask about fertilizer dosages, irrigation, spraying, or mandi trends..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          className="form-input"
           style={{
             flex: 1,
-            padding: '12px 18px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
+            padding: '14px 20px',
             borderRadius: 'var(--radius-sm)',
-            color: '#ffffff',
             fontSize: '0.94rem'
           }}
         />
-        <button type="submit" className="btn-primary" disabled={loading}>
+        <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '0 24px' }}>
           <Send size={18} />
           <span>Send</span>
         </button>
