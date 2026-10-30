@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Layers, FileText, CheckCircle2, Sprout, AlertCircle } from 'lucide-react';
+import { MapPin, Plus, Layers, FileText, CheckCircle2, Sprout, AlertCircle, Download } from 'lucide-react';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
+import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 
 export const FarmsPage: React.FC = () => {
   const { refreshAuth } = useAuth();
@@ -11,6 +12,7 @@ export const FarmsPage: React.FC = () => {
   const [soilRecords, setSoilRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [ndviVisible, setNdviVisible] = useState(false);
 
   async function loadFarms(preferredId?: string) {
     try {
@@ -41,6 +43,7 @@ export const FarmsPage: React.FC = () => {
 
   const handleSelectFarm = async (f: any) => {
     setSelectedFarm(f);
+    setNdviVisible(false); // reset NDVI when switching farm
     try {
       const soils = await api.getSoilRecords(f.id);
       setSoilRecords(soils);
@@ -50,6 +53,37 @@ export const FarmsPage: React.FC = () => {
   };
 
   const latestSoil = soilRecords[0];
+
+  // Parse GeoJSON polygon from selected farm into LatLng[] for the map editor
+  function parseBoundaryPoints(farm: any): LatLng[] {
+    try {
+      const geo = farm?.boundaryGeoJson ?? farm?.boundary_geojson;
+      if (!geo) return [];
+      const parsed = typeof geo === 'string' ? JSON.parse(geo) : geo;
+
+      // coordinates[0] is the outer ring; may be empty if no boundary was drawn
+      const ring: number[][] = parsed?.coordinates?.[0] ?? [];
+      if (ring.length < 4) return []; // need at least 3 unique + 1 closing point
+
+      // GeoJSON ring is closed (last point == first), so drop the last point
+      const open = ring.slice(0, ring.length - 1);
+      return open.map(([lng, lat]: number[]) => ({ lat, lng }));
+    } catch {
+      return [];
+    }
+  }
+
+  function exportGeoJSON(farm: any) {
+    const geo = farm?.boundaryGeoJson ?? farm?.boundary_geojson;
+    if (!geo) return;
+    const str = JSON.stringify(typeof geo === 'string' ? JSON.parse(geo) : geo, null, 2);
+    const blob = new Blob([str], { type: 'application/geo+json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${farm.name?.replace(/\s+/g, '_') || 'farm'}_boundary.geojson`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '28px' }}>
@@ -190,97 +224,70 @@ export const FarmsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Interactive Map & Boundary GeoJSON Visualizer */}
+        {/* Right Column: Interactive Map */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
                 {selectedFarm?.name || 'GIS Cadastral Boundary & Satellite View'}
               </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                Plot ID: {selectedFarm?.id ? `${selectedFarm.id.slice(0, 13)}...` : 'N/A'} • Centroid: {Number(selectedFarm?.latitude || 18.4875).toFixed(4)}°N, {Number(selectedFarm?.longitude || 74.1332).toFixed(4)}°E
+                Plot ID: {selectedFarm?.id ? `${selectedFarm.id.slice(0, 13)}…` : 'N/A'} • Centroid: {Number(selectedFarm?.latitude || 18.4875).toFixed(4)}°N, {Number(selectedFarm?.longitude || 74.1332).toFixed(4)}°E
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span className="badge badge-info">PostGIS ST_Polygon</span>
               <span className="badge badge-success">
-                {selectedFarm ? `${selectedFarm.areaAcres} Acres Verified` : 'No Plot Selected'}
+                {selectedFarm ? `${selectedFarm.areaAcres} Acres` : 'No Plot Selected'}
               </span>
             </div>
           </div>
 
-          {/* Interactive Simulated Leaflet Satellite Canvas */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: '420px',
-              borderRadius: 'var(--radius-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-              background: '#131e15',
-              border: '1px solid var(--border-subtle)',
-              backgroundImage: 'radial-gradient(#1f3322 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {/* SVG Polygon Representation of Farm Boundaries */}
-            <svg viewBox="0 0 600 400" style={{ width: '100%', height: '100%', maxWidth: '600px' }}>
-              <defs>
-                <linearGradient id="fieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(16, 185, 129, 0.4)" />
-                  <stop offset="100%" stopColor="rgba(5, 150, 105, 0.15)" />
-                </linearGradient>
-              </defs>
-              {/* Field boundary polygon */}
-              <polygon
-                points="120,80 480,95 440,320 150,300"
-                fill="url(#fieldGrad)"
-                stroke="#10b981"
-                strokeWidth="3"
-                strokeDasharray="6,4"
+          {/* Real Leaflet Map */}
+          {selectedFarm ? (
+            <>
+              <FarmMapEditor
+                key={selectedFarm.id}
+                center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
+                initialPolygon={parseBoundaryPoints(selectedFarm)}
+                height={440}
+                readOnly
+                showNdvi={ndviVisible}
               />
-              {/* Corner Pin Markers */}
-              <circle cx="120" cy="80" r="6" fill="#34d399" />
-              <circle cx="480" cy="95" r="6" fill="#34d399" />
-              <circle cx="440" cy="320" r="6" fill="#34d399" />
-              <circle cx="150" cy="300" r="6" fill="#34d399" />
-              {/* Centroid Tag */}
-              <circle cx="295" cy="198" r="8" fill="#38bdf8" />
-              <text x="310" y="202" fill="#ffffff" fontSize="12" fontWeight="700">
-                {selectedFarm ? `${selectedFarm.name} IoT Node` : 'IoT Gateway Node #01'}
-              </text>
-            </svg>
-
-            {/* Map Overlay Badge */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                left: '16px',
-                padding: '8px 14px',
-                background: 'rgba(12, 18, 12, 0.9)',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)'
-              }}
-            >
-              EPSG:4326 PostGIS Geometry • 4 Boundary Vertices
+              {/* Action buttons */}
+              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                {(selectedFarm?.boundaryGeoJson || selectedFarm?.boundary_geojson) && (
+                  <button
+                    className="btn-secondary"
+                    style={{ fontSize: '0.84rem' }}
+                    onClick={() => exportGeoJSON(selectedFarm)}
+                  >
+                    <Download size={14} />
+                    <span>Export Boundary GeoJSON</span>
+                  </button>
+                )}
+                <button
+                    className="btn-secondary"
+                    style={{
+                      fontSize: '0.84rem',
+                      background: ndviVisible ? 'rgba(16,185,129,0.18)' : undefined,
+                      borderColor: ndviVisible ? '#10b981' : undefined,
+                      color: ndviVisible ? '#10b981' : undefined,
+                    }}
+                    onClick={() => setNdviVisible((v) => !v)}
+                  >
+                    <Layers size={14} />
+                    <span>{ndviVisible ? '✅ NDVI Layer ON' : 'Toggle NDVI Layer'}</span>
+                  </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, minHeight: '440px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: 'var(--text-muted)' }}>
+              <MapPin size={40} color="#10b981" style={{ opacity: 0.4 }} />
+              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>Select a farm to view its boundary</p>
+              <p style={{ fontSize: '0.82rem' }}>Register a farm plot first to see the GIS map.</p>
             </div>
-          </div>
-
-          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button className="btn-secondary" style={{ fontSize: '0.84rem' }}>
-              <Layers size={14} />
-              <span>Toggle NDVI Vegetation Layer</span>
-            </button>
-            <button className="btn-secondary" style={{ fontSize: '0.84rem' }}>
-              <span>Export Cadastral KML/GeoJSON</span>
-            </button>
-          </div>
+          )}
         </div>
       </div>
 

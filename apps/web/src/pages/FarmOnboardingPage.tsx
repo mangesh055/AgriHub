@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Sprout, FileText, ArrowRight, Upload, CheckCircle2, RefreshCw, FileCheck, Navigation } from 'lucide-react';
+import { MapPin, Sprout, FileText, ArrowRight, Upload, CheckCircle2, RefreshCw, FileCheck, Navigation, Map } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 
 const WATER_SOURCE_OPTIONS = [
   { id: 'CANAL', label: 'Canal (Nira Left Bank Canal Flow)' },
@@ -82,6 +83,8 @@ export const FarmOnboardingPage: React.FC = () => {
   const [locatingGps, setLocatingGps] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [boundaryPoints, setBoundaryPoints] = useState<LatLng[]>([]);
+  const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<object | null>(null);
 
   function toggleWaterSource(id: string) {
     setFarmData((prev) => {
@@ -245,6 +248,7 @@ export const FarmOnboardingPage: React.FC = () => {
         locationName: locationFull,
         latitude: parseFloat(farmData.latitude) || 18.4875,
         longitude: parseFloat(farmData.longitude) || 74.1332,
+        boundaryGeoJson: boundaryGeoJSON ?? undefined,
         notes: farmData.notes
       });
 
@@ -471,6 +475,47 @@ export const FarmOnboardingPage: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Section 2b: Interactive Farm Boundary Map */}
+          <div style={{ padding: '24px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', border: '1.5px solid rgba(16, 185, 129, 0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                <Map size={20} color="#10b981" />
+                <span>Draw Your Farm Boundary on the Map</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.15)', color: '#10b981', marginLeft: '4px' }}>Optional but Recommended</span>
+              </h3>
+              {boundaryPoints.length >= 3 && (
+                <span style={{ fontSize: '0.82rem', color: '#34d399', fontWeight: 700 }}>
+                  ✅ {boundaryPoints.length} boundary points saved
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+              Click on the map to mark the corners of your farm land. Drag the green dots to adjust. The GPS coordinates above will auto-update to the boundary centre.
+              Use <strong>Street Map</strong> or switch to <strong>🛰️ Satellite View</strong> using the layer control (top-right of map) to see your actual field from above.
+            </p>
+            <FarmMapEditor
+              center={{
+                lat: parseFloat(farmData.latitude) || 20.5937,
+                lng: parseFloat(farmData.longitude) || 78.9629
+              }}
+              height={460}
+              onChange={(pts, geo) => {
+                setBoundaryPoints(pts);
+                setBoundaryGeoJSON(geo);
+                // Auto-update lat/lng to boundary centroid
+                if (pts.length >= 1) {
+                  const cLat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+                  const cLng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+                  setFarmData((prev) => ({
+                    ...prev,
+                    latitude: cLat.toFixed(5),
+                    longitude: cLng.toFixed(5),
+                  }));
+                }
+              }}
+            />
           </div>
 
           {/* Section 3: Water Sources */}
