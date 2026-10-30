@@ -101,6 +101,62 @@ farmRouter.post('/extract-soil-report', async (req: Request, res: Response) => {
   });
 });
 
+// Reverse Geocoding for Cadastral Farm Location Mapping
+farmRouter.get('/reverse-geocode', async (req: Request, res: Response) => {
+  const lat = parseFloat(req.query.lat as string);
+  const lng = parseFloat(req.query.lng as string);
+
+  if (isNaN(lat) || isNaN(lng)) {
+    return res.status(400).json({ error: 'Valid lat and lng query params are required' });
+  }
+
+  function cleanGeoName(val: string | undefined): string {
+    if (!val) return '';
+    return val
+      .replace(/\s+(Tehsil|Taluka|Taluk|District|Subdistrict)$/i, '')
+      .trim();
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'AgriHub-SmartAgro/2.4 (agricultural-cadastre-mapping)'
+      }
+    });
+
+    if (response.ok) {
+      const data: any = await response.json();
+      const addr = data.address || {};
+
+      const rawVillage = addr.village || addr.hamlet || addr.suburb || addr.town || addr.city || addr.neighbourhood || '';
+      const rawTaluka = addr.county || addr.tehsil || addr.taluka || addr.subdistrict || '';
+      const rawDistrict = addr.state_district || addr.district || addr.county || '';
+      const rawState = addr.state || 'Maharashtra';
+
+      return res.json({
+        success: true,
+        village: cleanGeoName(rawVillage),
+        taluka: cleanGeoName(rawTaluka),
+        district: cleanGeoName(rawDistrict),
+        state: cleanGeoName(rawState) || 'Maharashtra',
+        displayName: data.display_name || ''
+      });
+    }
+  } catch (err: any) {
+    console.error('Reverse geocode error:', err.message);
+  }
+
+  return res.json({
+    success: false,
+    village: '',
+    taluka: '',
+    district: '',
+    state: 'Maharashtra',
+    displayName: ''
+  });
+});
+
 farmRouter.get('/:id', async (req: Request, res: Response) => {
   const farms = await db.getFarms();
   const farm = farms.find((f) => f.id === req.params.id) || store.farms.get(req.params.id);

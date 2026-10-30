@@ -24,9 +24,17 @@ export interface FarmRegistrationMapProps {
   areaAcres: number;
   boundaryPoints: LatLng[];
   onLocationChange: (lat: number, lng: number) => void;
-  onBoundaryChange: (points: LatLng[], calculatedAcres: number) => void;
+  onBoundaryChange: (points: LatLng[], calculatedAcres: number, centroid?: LatLng) => void;
   onSyncAreaToBoundary?: (calculatedAcres: number) => void;
   height?: string | number;
+}
+
+export function computeCentroid(pts: LatLng[]): LatLng {
+  if (!pts || pts.length === 0) return { lat: 18.1519, lng: 74.5771 };
+  return {
+    lat: Number((pts.reduce((s, p) => s + p.lat, 0) / pts.length).toFixed(5)),
+    lng: Number((pts.reduce((s, p) => s + p.lng, 0) / pts.length).toFixed(5)),
+  };
 }
 
 // Planar Geodesic Area Calculation for Agricultural Land in Acres
@@ -188,7 +196,11 @@ export const FarmRegistrationMap: React.FC<FarmRegistrationMapProps> = ({
         setPoints((prev) => {
           const updated = prev.map((p, i) => (i === idx ? { lat, lng } : p));
           const calculated = computePolygonAreaAcres(updated);
-          onBoundaryChangeRef.current?.(updated, calculated);
+          const centroid = computeCentroid(updated);
+          if (centerMarkerRef.current) {
+            centerMarkerRef.current.setLatLng([centroid.lat, centroid.lng]);
+          }
+          onBoundaryChangeRef.current?.(updated, calculated, centroid);
           return updated;
         });
       });
@@ -197,7 +209,11 @@ export const FarmRegistrationMap: React.FC<FarmRegistrationMapProps> = ({
         setPoints((prev) => {
           const updated = prev.filter((_, i) => i !== idx);
           const calculated = computePolygonAreaAcres(updated);
-          onBoundaryChangeRef.current?.(updated, calculated);
+          const centroid = computeCentroid(updated);
+          if (centerMarkerRef.current && updated.length > 0) {
+            centerMarkerRef.current.setLatLng([centroid.lat, centroid.lng]);
+          }
+          onBoundaryChangeRef.current?.(updated, calculated, centroid);
           return updated;
         });
       });
@@ -258,7 +274,8 @@ export const FarmRegistrationMap: React.FC<FarmRegistrationMapProps> = ({
       setPoints((prev) => {
         const updated = [...prev, newPt];
         const calculated = computePolygonAreaAcres(updated);
-        onBoundaryChangeRef.current?.(updated, calculated);
+        const centroid = computeCentroid(updated);
+        onBoundaryChangeRef.current?.(updated, calculated, centroid);
         return updated;
       });
     });
@@ -301,7 +318,8 @@ export const FarmRegistrationMap: React.FC<FarmRegistrationMapProps> = ({
     const box = generateBoxBoundary(safeLat, safeLng, areaAcres || 4.0);
     setPoints(box);
     const calculated = computePolygonAreaAcres(box);
-    onBoundaryChangeRef.current(box, calculated);
+    const centroid = computeCentroid(box);
+    onBoundaryChangeRef.current(box, calculated, centroid);
 
     if (mapRef.current) {
       const bounds = L.latLngBounds(box.map((p) => L.latLng(p.lat, p.lng)));

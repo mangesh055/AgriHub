@@ -80,6 +80,10 @@ export const api = {
     apiRequest<{ success: boolean; message: string }>(`/farms/${id}`, {
       method: 'DELETE'
     }),
+  reverseGeocode: (lat: number, lng: number) =>
+    apiRequest<{ success: boolean; village: string; taluka: string; district: string; state: string; displayName?: string }>(
+      `/farms/reverse-geocode?lat=${lat}&lng=${lng}`
+    ),
 
   // Soil & Crops
   getSoilRecords: (farmId: string) => apiRequest<any[]>(`/farms/${farmId}/soil-records`),

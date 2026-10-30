@@ -109,6 +109,7 @@ export const db = {
             ownershipType: f.ownership_type || locMeta.ownershipType || 'INDIVIDUAL',
             gatNumber: f.gat_number || locMeta.gatNumber || '',
             coOwners: f.co_owners || locMeta.coOwners || [],
+            splitOrientation: (f as any).split_orientation || locMeta.splitOrientation || 'auto',
             notes: f.notes,
             createdAt: f.created_at,
             updatedAt: f.updated_at
@@ -214,7 +215,8 @@ export const db = {
       ...(updates.cropAllocations ? { cropAllocations: updates.cropAllocations } : {}),
       ...(updates.ownershipType ? { ownershipType: updates.ownershipType } : {}),
       ...(updates.gatNumber ? { gatNumber: updates.gatNumber } : {}),
-      ...(updates.coOwners ? { coOwners: updates.coOwners } : {})
+      ...(updates.coOwners ? { coOwners: updates.coOwners } : {}),
+      ...(updates.splitOrientation ? { splitOrientation: updates.splitOrientation } : {})
     };
 
     const finalBoundary = {
@@ -264,6 +266,7 @@ export const db = {
           ownershipType: meta.ownershipType || 'INDIVIDUAL',
           gatNumber: meta.gatNumber || '',
           coOwners: meta.coOwners || [],
+          splitOrientation: meta.splitOrientation || 'auto',
           notes: data.notes,
           createdAt: data.created_at,
           updatedAt: data.updated_at

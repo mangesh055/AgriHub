@@ -12,18 +12,16 @@ import {
   PieChart,
   Users,
   ShieldCheck,
-  Box,
   Save,
   RotateCcw,
   Edit3,
   Check
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
-import { Farm2DCadastreMap, generateDynamicUlpin } from '../components/Farm2DCadastreMap';
+import { generateDynamicUlpin } from '../components/Farm2DCadastreMap';
 
 // Geodesic / Planar area calculation in Acres for polygon vertices
 function computePolygonAreaAcres(pts: LatLng[]): number {
@@ -48,7 +46,6 @@ function computePolygonAreaAcres(pts: LatLng[]): number {
 
 export const FarmsPage: React.FC = () => {
   const { refreshAuth, profile, user } = useAuth();
-  const [mapViewMode, setMapViewMode] = useState<'cadastre2d' | 'editor'>('cadastre2d');
   const [farms, setFarms] = useState<any[]>([]);
   const [selectedFarm, setSelectedFarm] = useState<any>(null);
   const [soilRecords, setSoilRecords] = useState<any[]>([]);
@@ -58,9 +55,11 @@ export const FarmsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Boundary editing state
+  // Boundary & Co-owner editing state
   const [isEditingBoundary, setIsEditingBoundary] = useState(false);
   const [editedBoundaryPoints, setEditedBoundaryPoints] = useState<LatLng[] | null>(null);
+  const [editedCoOwners, setEditedCoOwners] = useState<any[] | null>(null);
+  const [splitOrientation, setSplitOrientation] = useState<'auto' | 'horizontal' | 'vertical'>('auto');
   const [isSavingBoundary, setIsSavingBoundary] = useState(false);
   const [boundarySaveSuccess, setBoundarySaveSuccess] = useState(false);
 
@@ -101,6 +100,7 @@ export const FarmsPage: React.FC = () => {
           ? data.find((f) => f.id === preferredId) || data[0]
           : data[0];
         setSelectedFarm(farmToSelect);
+        setSplitOrientation(farmToSelect.splitOrientation || 'auto');
         const soils = await api.getSoilRecords(farmToSelect.id);
         setSoilRecords(soils);
       } else {
@@ -123,12 +123,22 @@ export const FarmsPage: React.FC = () => {
     setNdviVisible(false); // reset NDVI when switching farm
     setIsEditingBoundary(false);
     setEditedBoundaryPoints(null);
+    setEditedCoOwners(null);
+    setSplitOrientation(f.splitOrientation || 'auto');
     try {
       const soils = await api.getSoilRecords(f.id);
       setSoilRecords(soils);
     } catch (err) {
       setSoilRecords([]);
     }
+  };
+
+  const startEditingBoundary = () => {
+    if (!selectedFarm) return;
+    setIsEditingBoundary(true);
+    setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
+    setEditedCoOwners(selectedFarm?.coOwners ? JSON.parse(JSON.stringify(selectedFarm.coOwners)) : []);
+    setSplitOrientation(selectedFarm?.splitOrientation || 'auto');
   };
 
   const handleSaveBoundary = async () => {
@@ -151,18 +161,22 @@ export const FarmsPage: React.FC = () => {
       const centroidLat = pointsToSave.reduce((s, p) => s + p.lat, 0) / pointsToSave.length;
       const centroidLng = pointsToSave.reduce((s, p) => s + p.lng, 0) / pointsToSave.length;
       const newAreaAcres = computePolygonAreaAcres(pointsToSave);
+      const coOwnersToSave = editedCoOwners || selectedFarm.coOwners;
 
       await api.updateFarm(selectedFarm.id, {
         boundaryGeoJson: newGeoJson,
         areaAcres: newAreaAcres > 0 ? newAreaAcres : Number(selectedFarm.areaAcres),
         latitude: centroidLat,
-        longitude: centroidLng
+        longitude: centroidLng,
+        coOwners: coOwnersToSave,
+        splitOrientation
       });
 
       setBoundarySaveSuccess(true);
       setTimeout(() => setBoundarySaveSuccess(false), 4500);
       setIsEditingBoundary(false);
       setEditedBoundaryPoints(null);
+      setEditedCoOwners(null);
 
       // Reload farms and keep current selected
       await loadFarms(selectedFarm.id);
@@ -441,103 +455,87 @@ export const FarmsPage: React.FC = () => {
           {/* Real Leaflet Map */}
           {selectedFarm ? (
             <>
-              {/* Map View Switcher: 2D Cadastre vs Boundary Editor */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '6px', background: 'rgba(255, 255, 255, 0.04)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setMapViewMode('cadastre2d')}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: mapViewMode === 'cadastre2d' ? '#0284c7' : 'transparent',
-                      color: mapViewMode === 'cadastre2d' ? '#ffffff' : 'var(--text-muted)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    🛰️ 2D Cadastre Map
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMapViewMode('editor')}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: mapViewMode === 'editor' ? '#10b981' : 'transparent',
-                      color: mapViewMode === 'editor' ? '#ffffff' : 'var(--text-muted)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    ✏️ Boundary & NDVI Editor
-                  </button>
-                </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {mapViewMode === 'cadastre2d' ? '✨ 2D Cadastral Spatial Parcel' : 'Interactive Vertex Editor'}
-                </span>
-              </div>
+              {(() => {
+                const activePts = editedBoundaryPoints || parseBoundaryPoints(selectedFarm);
+                const activeTotalAcres = computePolygonAreaAcres(activePts) || Number(selectedFarm.areaAcres) || 0;
+                const activeCoOwners = (isEditingBoundary && editedCoOwners) ? editedCoOwners : (selectedFarm.coOwners || []);
 
-              {mapViewMode === 'cadastre2d' ? (
-                <Farm2DCadastreMap
-                  key={`cadastre-${selectedFarm.id}`}
-                  center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
-                  polygonPoints={parseBoundaryPoints(selectedFarm)}
-                  height={440}
-                  ownerName={effectiveOwnerName}
-                  ulpin={dynamicUlpin}
-                  farmName={selectedFarm.name}
-                  areaAcres={Number(selectedFarm.areaAcres)}
-                  gatNumber={selectedFarm.gatNumber || ''}
-                  village={selectedFarm.village}
-                  taluka={selectedFarm.taluka}
-                  district={selectedFarm.district}
-                  state={selectedFarm.state}
-                  irrigationSource={selectedFarm.irrigationSource}
-                  coOwners={selectedFarm.coOwners}
-                  hasRealFarm={true}
-                  onAdjustBoundary={() => {
-                    setMapViewMode('editor');
-                    setIsEditingBoundary(true);
-                    setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
-                  }}
-                />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {/* Boundary Editor Header & Action Bar */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      background: isEditingBoundary ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                      border: `1px solid ${isEditingBoundary ? '#10b981' : 'var(--border-subtle)'}`,
-                      flexWrap: 'wrap',
-                      gap: '10px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isEditingBoundary ? '#34d399' : 'var(--text-heading)' }}>
-                        {isEditingBoundary ? '✏️ Interactive Boundary Adjustment Mode' : '📍 Cadastral Boundary View'}
-                      </span>
-                      {isEditingBoundary && (
-                        <span style={{ fontSize: '0.8rem', color: '#93c5fd', background: 'rgba(59, 130, 246, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
-                          Real-time Area: <strong>{computePolygonAreaAcres(editedBoundaryPoints || parseBoundaryPoints(selectedFarm))} Acres</strong>
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Boundary Editor Header & Action Bar */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        background: isEditingBoundary ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                        border: `1px solid ${isEditingBoundary ? '#10b981' : 'var(--border-subtle)'}`,
+                        flexWrap: 'wrap',
+                        gap: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isEditingBoundary ? '#34d399' : 'var(--text-heading)' }}>
+                          {isEditingBoundary ? '✏️ Interactive Boundary & Partition Adjustment' : '📍 Cadastral Boundary View'}
                         </span>
-                      )}
-                    </div>
+                        {isEditingBoundary && (
+                          <span style={{ fontSize: '0.8rem', color: '#93c5fd', background: 'rgba(59, 130, 246, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                            Overall Area: <strong>{activeTotalAcres} Acres</strong>
+                          </span>
+                        )}
+                      </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      {isEditingBoundary ? (
-                        <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {isEditingBoundary ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              style={{
+                                fontSize: '0.82rem',
+                                padding: '6px 14px',
+                                background: '#10b981',
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                              onClick={handleSaveBoundary}
+                              disabled={isSavingBoundary}
+                            >
+                              <Save size={14} />
+                              <span>{isSavingBoundary ? 'Saving…' : 'Save Adjusted Boundary'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={() => {
+                                setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
+                                setEditedCoOwners(selectedFarm.coOwners ? JSON.parse(JSON.stringify(selectedFarm.coOwners)) : []);
+                              }}
+                              disabled={isSavingBoundary}
+                            >
+                              <RotateCcw size={14} />
+                              <span>Reset</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                              onClick={() => {
+                                setIsEditingBoundary(false);
+                                setEditedBoundaryPoints(null);
+                                setEditedCoOwners(null);
+                              }}
+                              disabled={isSavingBoundary}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
                             className="btn-primary"
@@ -545,111 +543,191 @@ export const FarmsPage: React.FC = () => {
                               fontSize: '0.82rem',
                               padding: '6px 14px',
                               background: '#10b981',
-                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px'
                             }}
-                            onClick={handleSaveBoundary}
-                            disabled={isSavingBoundary}
+                            onClick={startEditingBoundary}
                           >
-                            <Save size={14} />
-                            <span>{isSavingBoundary ? 'Saving…' : 'Save Adjusted Boundary'}</span>
+                            <Edit3 size={14} />
+                            <span>Adjust Boundary & Partition</span>
                           </button>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm))}
-                            disabled={isSavingBoundary}
-                          >
-                            <RotateCcw size={14} />
-                            <span>Reset</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                            onClick={() => {
-                              setIsEditingBoundary(false);
-                              setEditedBoundaryPoints(null);
-                            }}
-                            disabled={isSavingBoundary}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={{
-                            fontSize: '0.82rem',
-                            padding: '6px 14px',
-                            background: '#10b981',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                          onClick={() => {
-                            setIsEditingBoundary(true);
-                            setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
-                          }}
-                        >
-                          <Edit3 size={14} />
-                          <span>Adjust Boundary Vertices</span>
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
+
+                    {/* Dedicated Co-Owner Separation Divider Adjustment Controls (when editing and co-owners exist) */}
+                    {isEditingBoundary && activeCoOwners.length > 1 && (
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          background: 'rgba(2, 132, 199, 0.08)',
+                          border: '1px solid rgba(2, 132, 199, 0.35)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
+                              ✂️ Co-Owner Separation Boundary (सामाईक खातेदार जमीन वाटप)
+                            </span>
+                            <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                              Drag the blue <strong>[↔ Move Boundary]</strong> handle on the map, or slide below
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>Dividing Axis:</span>
+                            <button
+                              type="button"
+                              onClick={() => setSplitOrientation('vertical')}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                fontSize: '0.76rem',
+                                fontWeight: 600,
+                                background: splitOrientation === 'vertical' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                                color: splitOrientation === 'vertical' ? '#fff' : 'var(--text-main)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ↔️ East-West
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSplitOrientation('horizontal')}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                fontSize: '0.76rem',
+                                fontWeight: 600,
+                                background: splitOrientation === 'horizontal' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                                color: splitOrientation === 'horizontal' ? '#fff' : 'var(--text-main)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ↕️ North-South
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive ratio slider for 2 co-owners */}
+                        {activeCoOwners.length === 2 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '150px' }}>
+                              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399' }}>
+                                {activeCoOwners[0].name}: {activeCoOwners[0].shareAcres} Ac ({activeTotalAcres > 0 ? ((Number(activeCoOwners[0].shareAcres) / activeTotalAcres) * 100).toFixed(0) : 50}%)
+                              </span>
+                            </div>
+
+                            <input
+                              type="range"
+                              min={5}
+                              max={95}
+                              step={0.5}
+                              value={activeTotalAcres > 0 ? Number(((Number(activeCoOwners[0].shareAcres) / activeTotalAcres) * 100).toFixed(1)) : 50}
+                              onChange={(e) => {
+                                const pct = parseFloat(e.target.value);
+                                const shareA = Number(((pct / 100) * activeTotalAcres).toFixed(2));
+                                const shareB = Number((activeTotalAcres - shareA).toFixed(2));
+                                setEditedCoOwners([
+                                  { ...activeCoOwners[0], shareAcres: shareA, percentage: pct },
+                                  { ...activeCoOwners[1], shareAcres: shareB, percentage: 100 - pct }
+                                ]);
+                              }}
+                              style={{ flex: 1, minWidth: '160px', accentColor: '#0284c7', cursor: 'pointer' }}
+                            />
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '150px' }}>
+                              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#0ea5e9' }} />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#38bdf8' }}>
+                                {activeCoOwners[1].name}: {activeCoOwners[1].shareAcres} Ac ({activeTotalAcres > 0 ? ((Number(activeCoOwners[1].shareAcres) / activeTotalAcres) * 100).toFixed(0) : 50}%)
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const half = Number((activeTotalAcres / 2).toFixed(2));
+                                setEditedCoOwners([
+                                  { ...activeCoOwners[0], shareAcres: half, percentage: 50 },
+                                  { ...activeCoOwners[1], shareAcres: Number((activeTotalAcres - half).toFixed(2)), percentage: 50 }
+                                ]);
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                fontSize: '0.76rem',
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1px solid var(--border-subtle)',
+                                color: 'var(--text-main)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ⚖️ 50/50 Equal
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {boundarySaveSuccess && (
+                      <div style={{
+                        padding: '8px 12px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid #10b981',
+                        borderRadius: '6px',
+                        color: '#34d399',
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <Check size={16} />
+                        <span>Farm parcel boundary and co-owner partitions updated successfully!</span>
+                      </div>
+                    )}
+
+                    <FarmMapEditor
+                      key={`${selectedFarm.id}-${isEditingBoundary ? 'edit' : 'view'}-${splitOrientation}`}
+                      center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
+                      initialPolygon={activePts}
+                      height={440}
+                      readOnly={!isEditingBoundary}
+                      showNdvi={ndviVisible}
+                      coOwners={activeCoOwners}
+                      gatNumber={selectedFarm.gatNumber}
+                      splitOrientation={splitOrientation}
+                      onCoOwnersChange={(newCoOwners) => {
+                        setEditedCoOwners(newCoOwners);
+                      }}
+                      onSplitOrientationChange={(ori) => {
+                        setSplitOrientation(ori);
+                      }}
+                      onChange={(pts) => {
+                        setEditedBoundaryPoints(pts);
+                      }}
+                    />
                   </div>
-
-                  {boundarySaveSuccess && (
-                    <div style={{
-                      padding: '8px 12px',
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid #10b981',
-                      borderRadius: '6px',
-                      color: '#34d399',
-                      fontSize: '0.82rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <Check size={16} />
-                      <span>Farm parcel boundary and spatial acreage updated successfully!</span>
-                    </div>
-                  )}
-
-                  <FarmMapEditor
-                    key={`${selectedFarm.id}-${isEditingBoundary ? 'edit' : 'view'}`}
-                    center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
-                    initialPolygon={editedBoundaryPoints || parseBoundaryPoints(selectedFarm)}
-                    height={440}
-                    readOnly={!isEditingBoundary}
-                    showNdvi={ndviVisible}
-                    coOwners={selectedFarm.coOwners}
-                    gatNumber={selectedFarm.gatNumber}
-                    onChange={(pts) => {
-                      setEditedBoundaryPoints(pts);
-                    }}
-                  />
-                </div>
-              )}
+                );
+              })()}
               {/* Action buttons */}
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   className="btn-secondary"
                   style={{
                     fontSize: '0.84rem',
-                    background: mapViewMode === 'editor' && isEditingBoundary ? 'rgba(16,185,129,0.18)' : undefined,
-                    borderColor: mapViewMode === 'editor' && isEditingBoundary ? '#10b981' : undefined,
-                    color: mapViewMode === 'editor' && isEditingBoundary ? '#10b981' : undefined
+                    background: isEditingBoundary ? 'rgba(16,185,129,0.18)' : undefined,
+                    borderColor: isEditingBoundary ? '#10b981' : undefined,
+                    color: isEditingBoundary ? '#10b981' : undefined
                   }}
-                  onClick={() => {
-                    setMapViewMode('editor');
-                    setIsEditingBoundary(true);
-                    setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
-                  }}
+                  onClick={startEditingBoundary}
                 >
                   <Edit3 size={14} />
                   <span>Adjust Boundary</span>
@@ -664,18 +742,6 @@ export const FarmsPage: React.FC = () => {
                     <span>Export Boundary GeoJSON</span>
                   </button>
                 )}
-                <Link
-                  to="/cadastre-3d"
-                  className="btn-primary"
-                  style={{
-                    fontSize: '0.84rem',
-                    background: '#0284c7',
-                    boxShadow: '0 2px 10px rgba(2, 132, 199, 0.4)'
-                  }}
-                >
-                  <Box size={14} />
-                  <span>View in 3D Cadastre (ULPIN)</span>
-                </Link>
                 <button
                   className="btn-secondary"
                   style={{
@@ -705,113 +771,122 @@ export const FarmsPage: React.FC = () => {
               </div>
 
               {/* 7/12 Land Ownership & Co-Khatedar Partitioning Breakdown Card */}
-              {selectedFarm?.coOwners && selectedFarm.coOwners.length > 0 && (
-                <div
-                  style={{
-                    marginTop: '20px',
-                    padding: '20px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
-                        <Users size={18} color="#38bdf8" />
-                        <span>7/12 Land Ownership & Co-Khatedar Division (सामाईक खातेदार)</span>
-                      </h4>
-                      {selectedFarm.gatNumber && (
-                        <span className="badge badge-info" style={{ fontSize: '0.74rem' }}>
-                          🏷️ {selectedFarm.gatNumber}
-                        </span>
-                      )}
+              {(() => {
+                const cardOwners = (isEditingBoundary && editedCoOwners) ? editedCoOwners : (selectedFarm?.coOwners || []);
+                const cardTotalAcres = (isEditingBoundary && editedBoundaryPoints)
+                  ? computePolygonAreaAcres(editedBoundaryPoints)
+                  : Number(selectedFarm?.areaAcres) || 0;
+
+                if (!cardOwners || cardOwners.length === 0) return null;
+
+                return (
+                  <div
+                    style={{
+                      marginTop: '20px',
+                      padding: '20px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', margin: 0 }}>
+                          <Users size={18} color="#38bdf8" />
+                          <span>7/12 Land Ownership & Co-Khatedar Division (सामाईक खातेदार)</span>
+                        </h4>
+                        {selectedFarm.gatNumber && (
+                          <span className="badge badge-info" style={{ fontSize: '0.74rem' }}>
+                            🏷️ {selectedFarm.gatNumber}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                        Total Cadastral Area: <strong style={{ color: 'var(--text-heading)' }}>{cardTotalAcres} Acres</strong> • <strong>{cardOwners.length} Co-Sharers</strong>
+                      </span>
                     </div>
-                    <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                      Total Cadastral Area: <strong style={{ color: 'var(--text-heading)' }}>{selectedFarm.areaAcres} Acres</strong> • <strong>{selectedFarm.coOwners.length} Co-Sharers</strong>
-                    </span>
-                  </div>
 
-                  {/* Multi-color Co-Owner GIS Division Progress Bar */}
-                  <div style={{ height: '10px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '16px' }}>
-                    {selectedFarm.coOwners.map((owner: any, i: number) => {
-                      const acres = Number(owner.shareAcres) || 0;
-                      const total = Number(selectedFarm.areaAcres) || 1;
-                      const pct = Math.min(100, (acres / total) * 100);
-                      const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            width: `${pct}%`,
-                            height: '100%',
-                            background: colors[i % colors.length],
-                            transition: 'width 0.3s ease'
-                          }}
-                          title={`${owner.name} (${owner.relationship || 'Co-Owner'}): ${acres} Ac (${pct.toFixed(1)}%)`}
-                        />
-                      );
-                    })}
-                  </div>
+                    {/* Multi-color Co-Owner GIS Division Progress Bar */}
+                    <div style={{ height: '10px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '16px' }}>
+                      {cardOwners.map((owner: any, i: number) => {
+                        const acres = Number(owner.shareAcres) || 0;
+                        const total = cardTotalAcres || 1;
+                        const pct = Math.min(100, (acres / total) * 100);
+                        const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              background: colors[i % colors.length],
+                              transition: 'width 0.3s ease'
+                            }}
+                            title={`${owner.name} (${owner.relationship || 'Co-Owner'}): ${acres} Ac (${pct.toFixed(1)}%)`}
+                          />
+                        );
+                      })}
+                    </div>
 
-                  {/* Co-Owners Cards Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                    {selectedFarm.coOwners.map((owner: any, i: number) => {
-                      const acres = Number(owner.shareAcres) || 0;
-                      const total = Number(selectedFarm.areaAcres) || 1;
-                      const pct = Math.round((acres / total) * 100);
-                      const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
-                      const rowColor = colors[i % colors.length];
+                    {/* Co-Owners Cards Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                      {cardOwners.map((owner: any, i: number) => {
+                        const acres = Number(owner.shareAcres) || 0;
+                        const total = cardTotalAcres || 1;
+                        const pct = Math.round((acres / total) * 100);
+                        const colors = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
+                        const rowColor = colors[i % colors.length];
 
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            padding: '12px 14px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: 'rgba(255, 255, 255, 0.03)',
-                            border: '1px solid var(--border-subtle)',
-                            borderLeft: `4px solid ${rowColor}`
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-heading)' }}>
-                                {owner.name}
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '12px 14px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid var(--border-subtle)',
+                              borderLeft: `4px solid ${rowColor}`
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-heading)' }}>
+                                  {owner.name}
+                                </span>
+                                {owner.isManagingCultivator && (
+                                  <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px' }}>
+                                    ★ Cultivator
+                                  </span>
+                                )}
+                              </div>
+                              <span className="badge badge-info" style={{ fontSize: '0.72rem', padding: '2px 7px' }}>
+                                {pct}% Share
                               </span>
-                              {owner.isManagingCultivator && (
-                                <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px' }}>
-                                  ★ Cultivator
+                            </div>
+
+                            <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                              <strong style={{ color: rowColor }}>{acres} Acres</strong> • Relation: <strong>{owner.relationship || 'Co-Khatedar'}</strong>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              {owner.surveyHissaNo ? (
+                                <span>Hissa: <strong>{owner.surveyHissaNo}</strong></span>
+                              ) : (
+                                <span>Hissa: <strong>Unmarked</strong></span>
+                              )}
+                              {owner.assignedCrop && (
+                                <span style={{ background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                  🌱 {owner.assignedCrop}
                                 </span>
                               )}
                             </div>
-                            <span className="badge badge-info" style={{ fontSize: '0.72rem', padding: '2px 7px' }}>
-                              {pct}% Share
-                            </span>
                           </div>
-
-                          <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                            <strong style={{ color: rowColor }}>{acres} Acres</strong> • Relation: <strong>{owner.relationship || 'Co-Khatedar'}</strong>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            {owner.surveyHissaNo ? (
-                              <span>Hissa: <strong>{owner.surveyHissaNo}</strong></span>
-                            ) : (
-                              <span>Hissa: <strong>Unmarked</strong></span>
-                            )}
-                            {owner.assignedCrop && (
-                              <span style={{ background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                                🌱 {owner.assignedCrop}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Land Usage & Crop Allocation Breakdown Card */}
               {selectedFarm?.cropAllocations && selectedFarm.cropAllocations.length > 0 && (
@@ -895,12 +970,12 @@ export const FarmsPage: React.FC = () => {
             </>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <Farm2DCadastreMap
+              <FarmMapEditor
                 center={{ lat: 18.4875, lng: 74.1332 }}
+                initialPolygon={[]}
                 height={460}
-                ownerName={effectiveOwnerName}
-                hasRealFarm={false}
-                onRegisterClick={() => setShowModal(true)}
+                readOnly={true}
+                showNdvi={false}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
@@ -911,19 +986,6 @@ export const FarmsPage: React.FC = () => {
                     <Plus size={14} />
                     <span>Register Farm Plot</span>
                   </button>
-                  <Link
-                    to="/cadastre-3d"
-                    className="btn-secondary"
-                    style={{
-                      fontSize: '0.84rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <Box size={14} color="#0284c7" />
-                    <span>View in 3D Cadastre</span>
-                  </Link>
                 </div>
               </div>
             </div>

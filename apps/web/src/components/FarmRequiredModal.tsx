@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Sprout,
   MapPin,
@@ -141,6 +141,89 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
     generateBoxBoundary(parseFloat(farmData.latitude) || 18.1519, parseFloat(farmData.longitude) || 74.5771, parseFloat(farmData.areaAcres) || 4.0)
   );
 
+  // Reverse Geocoding & Dynamic Location Auto-Resolution
+  const [geoResolving, setGeoResolving] = useState(false);
+  const [geoResolvedAddress, setGeoResolvedAddress] = useState<string | null>(null);
+  const reverseGeocodeTimerRef = useRef<any>(null);
+
+  const performReverseGeocode = useCallback((lat: number, lng: number) => {
+    if (reverseGeocodeTimerRef.current) {
+      clearTimeout(reverseGeocodeTimerRef.current);
+    }
+    reverseGeocodeTimerRef.current = setTimeout(async () => {
+      try {
+        setGeoResolving(true);
+        const res = await api.reverseGeocode(lat, lng);
+        if (res) {
+          setFarmData((prev) => ({
+            ...prev,
+            village: res.village || prev.village,
+            taluka: res.taluka || prev.taluka,
+            district: res.district || prev.district,
+            state: res.state || prev.state,
+          }));
+          const addrSummary = [res.village, res.taluka, res.district, res.state].filter(Boolean).join(', ');
+          if (addrSummary) {
+            setGeoResolvedAddress(addrSummary);
+            setTimeout(() => setGeoResolvedAddress(null), 5000);
+          }
+        }
+      } catch (err) {
+        console.warn('Reverse geocode lookup warning:', err);
+      } finally {
+        setGeoResolving(false);
+      }
+    }, 550); // 550ms debounce
+  }, []);
+
+  const handleMapLocationChange = useCallback((newLat: number, newLng: number) => {
+    setFarmData((prev) => ({
+      ...prev,
+      latitude: String(newLat),
+      longitude: String(newLng)
+    }));
+    performReverseGeocode(newLat, newLng);
+  }, [performReverseGeocode]);
+
+  const handleMapBoundaryChange = useCallback((newPoints: LatLng[], calculatedAcres: number, centroid?: LatLng) => {
+    setBoundaryPoints(newPoints);
+
+    // 1. Automatically update Total Land Area (Acres)
+    if (calculatedAcres > 0) {
+      const acresStr = String(calculatedAcres);
+      setFarmData((prev) => ({
+        ...prev,
+        areaAcres: acresStr
+      }));
+
+      // Synchronize initial single crop parcel if not split yet
+      setCropAllocations((prev) => {
+        if (prev.length === 1) {
+          return [{ ...prev[0], allocatedAcres: acresStr }];
+        }
+        return prev;
+      });
+
+      // Synchronize single co-owner share if only 1 co-owner exists
+      setCoOwners((prev) => {
+        if (prev.length === 1) {
+          return [{ ...prev[0], shareAcres: acresStr }];
+        }
+        return prev;
+      });
+    }
+
+    // 2. Automatically update GPS Coordinates & Reverse Geocode from Centroid
+    if (centroid && !isNaN(centroid.lat) && !isNaN(centroid.lng)) {
+      setFarmData((prev) => ({
+        ...prev,
+        latitude: String(centroid.lat),
+        longitude: String(centroid.lng)
+      }));
+      performReverseGeocode(centroid.lat, centroid.lng);
+    }
+  }, [performReverseGeocode]);
+
   // Crop Land Allocation (Planned land usage breakdown)
   const [cropAllocations, setCropAllocations] = useState<Array<{
     cropName: string;
@@ -277,6 +360,7 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
           longitude: String(newLng)
         }));
         setBoundaryPoints(generateBoxBoundary(newLat, newLng, parseFloat(farmData.areaAcres) || 4.0));
+        performReverseGeocode(newLat, newLng);
         setLocatingGps(false);
       },
       (err) => {
@@ -1144,15 +1228,41 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
 
             {/* Interactive Satellite Boundary & Location Map */}
             <div>
-              <label className="form-label" style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                <span className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Navigation size={15} color="#10b981" />
                   <span>{language === 'mr' ? 'उपग्रह नकाशा व प्रत्यक्ष शेत सीमा (Satellite Cadastral Boundary)' : 'Satellite Farm Boundary & Location Mapping'}</span>
                 </span>
-                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 600 }}>
-                  {language === 'mr' ? 'नकाशावर प्रत्यक्ष जमीन पाहून सीमा निश्चित करा' : 'Drag Pins to Adjust Boundary & Centroid'}
-                </span>
-              </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {geoResolving && (
+                    <span style={{ fontSize: '0.74rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="animate-spin">⏳</span>
+                      <span>Resolving address…</span>
+                    </span>
+                  )}
+                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 600 }}>
+                    {language === 'mr' ? 'नकाशावर प्रत्यक्ष जमीन पाहून सीमा निश्चित करा' : 'Drag Pins to Adjust Boundary & Centroid'}
+                  </span>
+                </div>
+              </div>
+
+              {geoResolvedAddress && (
+                <div style={{
+                  marginBottom: '8px',
+                  padding: '6px 12px',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  color: '#38bdf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>📍</span>
+                  <span><strong>Auto-synced from map:</strong> {geoResolvedAddress}</span>
+                </div>
+              )}
 
               <FarmRegistrationMap
                 latitude={parseFloat(farmData.latitude) || 18.1519}
@@ -1162,23 +1272,15 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
                 district={farmData.district}
                 areaAcres={parseFloat(farmData.areaAcres) || 4.0}
                 boundaryPoints={boundaryPoints}
-                onLocationChange={(newLat, newLng) => {
-                  setFarmData((prev) => ({
-                    ...prev,
-                    latitude: String(newLat),
-                    longitude: String(newLng)
-                  }));
-                }}
-                onBoundaryChange={(newPoints) => {
-                  setBoundaryPoints(newPoints);
-                }}
+                onLocationChange={handleMapLocationChange}
+                onBoundaryChange={handleMapBoundaryChange}
                 onSyncAreaToBoundary={(calculatedAcres) => {
                   setFarmData((prev) => ({
                     ...prev,
                     areaAcres: String(calculatedAcres)
                   }));
                 }}
-                height={360}
+                height={370}
               />
             </div>
           </div>

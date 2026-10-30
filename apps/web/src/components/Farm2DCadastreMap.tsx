@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Link } from 'react-router-dom';
-import { Box, Layers, Compass, ZoomIn, ZoomOut, RotateCcw, MapPin, Maximize2, Edit3, Plus } from 'lucide-react';
+import { Layers, Compass, ZoomIn, ZoomOut, RotateCcw, MapPin, Maximize2, Edit3, Plus } from 'lucide-react';
 
 // Fix default Leaflet marker icon paths in Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -739,28 +738,6 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
         >
           <RotateCcw size={14} />
         </button>
-
-        {/* Switch to 3D Cadastre Button */}
-        <Link
-          to="/cadastre-3d"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: '#0284c7',
-            color: '#ffffff',
-            padding: '7px 12px',
-            borderRadius: '8px',
-            fontSize: '0.74rem',
-            fontWeight: 700,
-            textDecoration: 'none',
-            boxShadow: '0 4px 14px rgba(2, 132, 199, 0.5)',
-            marginTop: '4px'
-          }}
-        >
-          <Box size={14} />
-          <span>3D View</span>
-        </Link>
       </div>
 
       {/* Floating Bottom Cadastre Status Pill */}
