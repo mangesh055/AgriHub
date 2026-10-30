@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   Divide
 } from 'lucide-react';
-import { api } from '../api/client';
+import { api, API_BASE_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 
@@ -429,7 +429,7 @@ export const FarmOnboardingPage: React.FC = () => {
       });
 
       // 2. Add Initial Soil Health Card - Nutrients are optional with defaults
-      await fetch(`http://localhost:4000/api/v1/farms/${createdFarm.id}/soil-records`, {
+      await fetch(`${API_BASE_URL}/farms/${createdFarm.id}/soil-records`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
