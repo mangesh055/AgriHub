@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Link } from 'react-router-dom';
-import { Box, Layers, Compass, ZoomIn, ZoomOut, RotateCcw, MapPin, Maximize2 } from 'lucide-react';
+import { Box, Layers, Compass, ZoomIn, ZoomOut, RotateCcw, MapPin, Maximize2, Edit3, Plus } from 'lucide-react';
 
 // Fix default Leaflet marker icon paths in Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -36,6 +36,9 @@ export interface Farm2DCadastreMapProps {
     isManagingCultivator?: boolean;
     assignedCrop?: string;
   }>;
+  hasRealFarm?: boolean;
+  onAdjustBoundary?: () => void;
+  onRegisterClick?: () => void;
 }
 
 export function generateDynamicUlpin(farm: {
@@ -103,7 +106,10 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
   district,
   state,
   irrigationSource,
-  coOwners
+  coOwners,
+  hasRealFarm,
+  onAdjustBoundary,
+  onRegisterClick
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -120,6 +126,11 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
 
   const neighborLayersRef = useRef<L.LayerGroup | null>(null);
   const dpRoadLayerRef = useRef<L.Polyline | null>(null);
+
+  // Determine if a real registered farm exists with actual boundary points
+  const isFarmRegistered = hasRealFarm !== undefined
+    ? hasRealFarm
+    : (!!polygonPoints && polygonPoints.length >= 3);
 
   // Compute dynamic owner name without hardcoded fallbacks
   const effectiveOwner = (ownerName && ownerName.trim() && ownerName.trim() !== 'Om')
@@ -179,11 +190,63 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     const map = mapRef.current;
     map.setView([lat, lng], 17);
 
-    // 2. Prepare Main Cadastral Farm Polygon
+    // Clean up previous layers
     if (polygonRef.current) {
       polygonRef.current.remove();
+      polygonRef.current = null;
+    }
+    if (neighborLayersRef.current) {
+      neighborLayersRef.current.clearLayers();
+    }
+    if (dpRoadLayerRef.current) {
+      dpRoadLayerRef.current.remove();
+      dpRoadLayerRef.current = null;
+    }
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
     }
 
+    // If NO farm is registered for the user, do NOT draw fake polygons or fake neighbors
+    if (!isFarmRegistered) {
+      const emptyPinHtml = `
+        <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer;">
+          <div style="background: rgba(15, 23, 42, 0.95); border: 2px solid #eab308; border-radius: 8px; padding: 7px 14px; box-shadow: 0 4px 20px rgba(234, 179, 8, 0.4); text-align: center; color: white; white-space: nowrap; backdrop-filter: blur(8px);">
+            <div style="font-size: 9px; font-weight: 800; color: #fbbf24; letter-spacing: 0.08em; text-transform: uppercase;">GPS CENTROID (NO BOUNDARY)</div>
+            <div style="font-size: 11px; font-weight: 700; color: #ffffff; margin-top: 1px;">${village || 'Location Target'}</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Farmer: <strong style="color: #38bdf8;">${effectiveOwner}</strong></div>
+          </div>
+          <div style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid #eab308;"></div>
+          <div style="width: 10px; height: 10px; border-radius: 50%; background: #eab308; box-shadow: 0 0 12px #fbbf24; margin-top: -3px;"></div>
+        </div>
+      `;
+
+      const emptyIcon = L.divIcon({
+        className: '',
+        html: emptyPinHtml,
+        iconSize: [220, 80],
+        iconAnchor: [110, 80]
+      });
+
+      const emptyMarker = L.marker([lat, lng], { icon: emptyIcon }).addTo(map);
+      markerRef.current = emptyMarker;
+
+      emptyMarker.bindPopup(`
+        <div style="font-family: Inter, sans-serif; padding: 6px; min-width: 200px;">
+          <div style="font-size: 11px; font-weight: 800; color: #f59e0b; text-transform: uppercase;">No Boundary Registered</div>
+          <p style="font-size: 12px; color: #334155; margin: 4px 0 0;">
+            No geofenced holding is registered for this user account. Click 'Register New Farm Plot' to map your farm boundary.
+          </p>
+        </div>
+      `);
+
+      const t = setTimeout(() => {
+        map.invalidateSize();
+      }, 150);
+      return () => clearTimeout(t);
+    }
+
+    // 2. Prepare Main Cadastral Farm Polygon
     let coords: [number, number][];
     if (polygonPoints && polygonPoints.length >= 3) {
       coords = polygonPoints.map((p) => [p.lat, p.lng]);
@@ -303,9 +366,6 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     }
 
     // 4. Dynamic Farm Approach Road / Waterway Corridor
-    if (dpRoadLayerRef.current) {
-      dpRoadLayerRef.current.remove();
-    }
     const dLatRoad = 0.00065;
     const dLngRoad = 0.00085;
     const dpRoadCoords: [number, number][] = [
@@ -321,10 +381,6 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     dpRoadLayerRef.current = dpRoad;
 
     // 5. Pulsing ULPIN Marker with Dynamic Owner Name & Details
-    if (markerRef.current) {
-      markerRef.current.remove();
-    }
-
     const coOwnersSubTag = coOwners && coOwners.length > 1
       ? `<div style="font-size: 9px; color: #34d399; font-weight: 600; margin-top: 2px;">👥 ${coOwners.length} Co-Owners (७/१२ सहहिस्सेदार)</div>`
       : '';
@@ -390,7 +446,7 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
     }, 150);
 
     return () => clearTimeout(t);
-  }, [center, ownerName, ulpin, farmName, areaAcres, gatNumber, polygonPoints, village, taluka, district, state, irrigationSource, coOwners, effectiveOwner, effectiveUlpin, roadLabel]);
+  }, [center, ownerName, ulpin, farmName, areaAcres, gatNumber, polygonPoints, village, taluka, district, state, irrigationSource, coOwners, effectiveOwner, effectiveUlpin, roadLabel, isFarmRegistered]);
 
   // Handle Map Style Switch
   const handleMapStyleToggle = (style: 'satellite' | 'street') => {
@@ -444,6 +500,48 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
       {/* Leaflet DOM Container */}
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
+      {/* When no farm is registered, show clean overlay with quick action */}
+      {!isFarmRegistered && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(15, 23, 42, 0.94)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid #334155',
+            borderRadius: '14px',
+            padding: '24px 28px',
+            textAlign: 'center',
+            zIndex: 420,
+            maxWidth: '380px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.75)'
+          }}
+        >
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+            <MapPin size={24} color="#10b981" />
+          </div>
+          <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 6px' }}>
+            No Farm Boundary Registered
+          </h4>
+          <p style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: 1.5, margin: '0 0 16px' }}>
+            There is no registered agricultural holding for this account. Register your farm plot to map and adjust your geofence.
+          </p>
+          {onRegisterClick && (
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ fontSize: '0.86rem', padding: '9px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={onRegisterClick}
+            >
+              <Plus size={16} />
+              <span>Register & Map Boundary</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Floating Top-Left Map Style Controls */}
       <div
         style={{
@@ -456,6 +554,7 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
           borderRadius: '8px',
           padding: '4px',
           display: 'flex',
+          alignItems: 'center',
           gap: '4px',
           zIndex: 400,
           boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
@@ -495,6 +594,29 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
         >
           🗺️ Street Cadastre
         </button>
+        {isFarmRegistered && onAdjustBoundary && (
+          <button
+            type="button"
+            onClick={onAdjustBoundary}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              border: '1px solid #10b981',
+              cursor: 'pointer',
+              background: 'rgba(16, 185, 129, 0.18)',
+              color: '#34d399',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Edit3 size={13} />
+            <span>Adjust Boundary</span>
+          </button>
+        )}
       </div>
 
       {/* Floating Top-Right Navigation Gizmos (Compass, Zoom, 3D Link) */}
@@ -668,23 +790,38 @@ export const Farm2DCadastreMap: React.FC<Farm2DCadastreMapProps> = ({
         <span>
           CRS: <strong style={{ color: '#10b981' }}>EPSG:4326</strong>
         </span>
-        <span>•</span>
-        <span>
-          Plot: <strong style={{ color: '#38bdf8' }}>{gatNumber}</strong>
-        </span>
-        {village && (
+        {isFarmRegistered ? (
           <>
-            <span>•</span>
-            <span>
-              Village: <strong style={{ color: '#f59e0b' }}>{village}</strong>
-            </span>
+            {gatNumber && (
+              <>
+                <span>•</span>
+                <span>
+                  Plot: <strong style={{ color: '#38bdf8' }}>{gatNumber}</strong>
+                </span>
+              </>
+            )}
+            {village && (
+              <>
+                <span>•</span>
+                <span>
+                  Village: <strong style={{ color: '#f59e0b' }}>{village}</strong>
+                </span>
+              </>
+            )}
+            {areaAcres && (
+              <>
+                <span>•</span>
+                <span>
+                  Area: <strong style={{ color: '#34d399' }}>{areaAcres} Ac</strong>
+                </span>
+              </>
+            )}
           </>
-        )}
-        {areaAcres && (
+        ) : (
           <>
             <span>•</span>
-            <span>
-              Area: <strong style={{ color: '#34d399' }}>{areaAcres} Ac</strong>
+            <span style={{ color: '#eab308', fontWeight: 700 }}>
+              Status: NO GEOFENCED HOLDING REGISTERED
             </span>
           </>
         )}

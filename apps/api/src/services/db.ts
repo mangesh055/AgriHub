@@ -197,6 +197,93 @@ export const db = {
     return farm;
   },
 
+  async updateFarm(farmId: string, updates: any): Promise<any> {
+    const supabase = getSupabaseClient();
+    const existing: any = store.farms.get(farmId) || {};
+
+    const baseGeo = updates.boundaryGeoJson !== undefined ? updates.boundaryGeoJson : (existing.boundaryGeoJson || { type: 'Polygon', coordinates: [] });
+    const locMeta = baseGeo?.locationMeta || existing.boundaryGeoJson?.locationMeta || {};
+
+    const updatedLocMeta = {
+      ...locMeta,
+      ...(updates.village ? { village: updates.village } : {}),
+      ...(updates.taluka ? { taluka: updates.taluka } : {}),
+      ...(updates.district ? { district: updates.district } : {}),
+      ...(updates.state ? { state: updates.state } : {}),
+      ...(updates.locationName ? { locationName: updates.locationName } : {}),
+      ...(updates.cropAllocations ? { cropAllocations: updates.cropAllocations } : {}),
+      ...(updates.ownershipType ? { ownershipType: updates.ownershipType } : {}),
+      ...(updates.gatNumber ? { gatNumber: updates.gatNumber } : {}),
+      ...(updates.coOwners ? { coOwners: updates.coOwners } : {})
+    };
+
+    const finalBoundary = {
+      ...baseGeo,
+      locationMeta: updatedLocMeta
+    };
+
+    if (supabase) {
+      const updatePayload: any = {
+        updated_at: new Date().toISOString()
+      };
+      if (updates.name !== undefined) updatePayload.name = updates.name;
+      if (updates.areaAcres !== undefined) updatePayload.area_acres = Number(updates.areaAcres);
+      if (updates.irrigationSource !== undefined) updatePayload.irrigation_source = updates.irrigationSource;
+      if (updates.latitude !== undefined) updatePayload.latitude = Number(updates.latitude);
+      if (updates.longitude !== undefined) updatePayload.longitude = Number(updates.longitude);
+      if (updates.boundaryGeoJson !== undefined) updatePayload.boundary_geojson = finalBoundary;
+      if (updates.notes !== undefined) updatePayload.notes = updates.notes;
+
+      const { data, error } = await supabase
+        .from('farms')
+        .update(updatePayload)
+        .eq('id', farmId)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Supabase updateFarm error:', error.message);
+      } else if (data) {
+        console.log('✅ Farm successfully updated in Supabase:', farmId);
+        const meta = data.boundary_geojson?.locationMeta || {};
+        const result = {
+          id: data.id,
+          farmerId: data.farmer_id,
+          name: data.name,
+          areaAcres: Number(data.area_acres),
+          irrigationSource: data.irrigation_source,
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          village: meta.village || data.village,
+          taluka: meta.taluka || data.taluka,
+          district: meta.district || data.district,
+          state: meta.state || data.state,
+          locationName: meta.locationName || data.location_name,
+          boundaryGeoJson: data.boundary_geojson,
+          cropAllocations: meta.cropAllocations || [],
+          ownershipType: meta.ownershipType || 'INDIVIDUAL',
+          gatNumber: meta.gatNumber || '',
+          coOwners: meta.coOwners || [],
+          notes: data.notes,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+        store.farms.set(farmId, result);
+        return result;
+      }
+    }
+
+    const merged = {
+      ...existing,
+      ...updates,
+      id: farmId,
+      boundaryGeoJson: finalBoundary,
+      updatedAt: new Date().toISOString()
+    };
+    store.farms.set(farmId, merged);
+    return merged;
+  },
+
   async deleteFarm(farmId: string): Promise<boolean> {
     const supabase = getSupabaseClient();
     if (supabase) {

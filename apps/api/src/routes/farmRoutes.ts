@@ -110,6 +110,12 @@ farmRouter.get('/:id', async (req: Request, res: Response) => {
   return res.json(farm);
 });
 
+farmRouter.put('/:id', async (req: Request, res: Response) => {
+  const farmId = req.params.id;
+  const updated = await db.updateFarm(farmId, req.body);
+  return res.json(updated);
+});
+
 farmRouter.delete('/:id', async (req: Request, res: Response) => {
   const farmId = req.params.id;
   await db.deleteFarm(farmId);

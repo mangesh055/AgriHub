@@ -12,7 +12,11 @@ import {
   PieChart,
   Users,
   ShieldCheck,
-  Box
+  Box,
+  Save,
+  RotateCcw,
+  Edit3,
+  Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
@@ -20,6 +24,27 @@ import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 import { Farm2DCadastreMap, generateDynamicUlpin } from '../components/Farm2DCadastreMap';
+
+// Geodesic / Planar area calculation in Acres for polygon vertices
+function computePolygonAreaAcres(pts: LatLng[]): number {
+  if (!pts || pts.length < 3) return 0;
+  const meanLat = (pts.reduce((s, p) => s + p.lat, 0) / pts.length) * (Math.PI / 180);
+  const metersPerDegLat = 111132.92 - 559.82 * Math.cos(2 * meanLat) + 1.175 * Math.cos(4 * meanLat);
+  const metersPerDegLng = 111412.84 * Math.cos(meanLat) - 93.5 * Math.cos(3 * meanLat);
+
+  let areaM2 = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    const xi = pts[i].lng * metersPerDegLng;
+    const yi = pts[i].lat * metersPerDegLat;
+    const xj = pts[j].lng * metersPerDegLng;
+    const yj = pts[j].lat * metersPerDegLat;
+    areaM2 += (xi * yj) - (xj * yi);
+  }
+  areaM2 = Math.abs(areaM2) / 2;
+  const acres = areaM2 / 4046.8564224;
+  return Number(acres.toFixed(2));
+}
 
 export const FarmsPage: React.FC = () => {
   const { refreshAuth, profile, user } = useAuth();
@@ -32,6 +57,12 @@ export const FarmsPage: React.FC = () => {
   const [ndviVisible, setNdviVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Boundary editing state
+  const [isEditingBoundary, setIsEditingBoundary] = useState(false);
+  const [editedBoundaryPoints, setEditedBoundaryPoints] = useState<LatLng[] | null>(null);
+  const [isSavingBoundary, setIsSavingBoundary] = useState(false);
+  const [boundarySaveSuccess, setBoundarySaveSuccess] = useState(false);
 
   // Dynamic owner name resolution without hardcoded fallback
   const effectiveOwnerName = useMemo(() => {
@@ -90,11 +121,56 @@ export const FarmsPage: React.FC = () => {
   const handleSelectFarm = async (f: any) => {
     setSelectedFarm(f);
     setNdviVisible(false); // reset NDVI when switching farm
+    setIsEditingBoundary(false);
+    setEditedBoundaryPoints(null);
     try {
       const soils = await api.getSoilRecords(f.id);
       setSoilRecords(soils);
     } catch (err) {
       setSoilRecords([]);
+    }
+  };
+
+  const handleSaveBoundary = async () => {
+    if (!selectedFarm) return;
+    const pointsToSave = editedBoundaryPoints || parseBoundaryPoints(selectedFarm);
+    if (!pointsToSave || pointsToSave.length < 3) {
+      alert('A valid farm parcel boundary requires at least 3 corner points.');
+      return;
+    }
+
+    try {
+      setIsSavingBoundary(true);
+      const coords = pointsToSave.map((p) => [p.lng, p.lat]);
+      coords.push([pointsToSave[0].lng, pointsToSave[0].lat]); // close ring
+      const newGeoJson = {
+        type: 'Polygon',
+        coordinates: [coords]
+      };
+
+      const centroidLat = pointsToSave.reduce((s, p) => s + p.lat, 0) / pointsToSave.length;
+      const centroidLng = pointsToSave.reduce((s, p) => s + p.lng, 0) / pointsToSave.length;
+      const newAreaAcres = computePolygonAreaAcres(pointsToSave);
+
+      await api.updateFarm(selectedFarm.id, {
+        boundaryGeoJson: newGeoJson,
+        areaAcres: newAreaAcres > 0 ? newAreaAcres : Number(selectedFarm.areaAcres),
+        latitude: centroidLat,
+        longitude: centroidLng
+      });
+
+      setBoundarySaveSuccess(true);
+      setTimeout(() => setBoundarySaveSuccess(false), 4500);
+      setIsEditingBoundary(false);
+      setEditedBoundaryPoints(null);
+
+      // Reload farms and keep current selected
+      await loadFarms(selectedFarm.id);
+      await refreshAuth();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save updated farm boundary');
+    } finally {
+      setIsSavingBoundary(false);
     }
   };
 
@@ -418,28 +494,166 @@ export const FarmsPage: React.FC = () => {
                   ulpin={dynamicUlpin}
                   farmName={selectedFarm.name}
                   areaAcres={Number(selectedFarm.areaAcres)}
-                  gatNumber={selectedFarm.gatNumber || 'Gat 124/A'}
+                  gatNumber={selectedFarm.gatNumber || ''}
                   village={selectedFarm.village}
                   taluka={selectedFarm.taluka}
                   district={selectedFarm.district}
                   state={selectedFarm.state}
                   irrigationSource={selectedFarm.irrigationSource}
                   coOwners={selectedFarm.coOwners}
+                  hasRealFarm={true}
+                  onAdjustBoundary={() => {
+                    setMapViewMode('editor');
+                    setIsEditingBoundary(true);
+                    setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
+                  }}
                 />
               ) : (
-                <FarmMapEditor
-                  key={selectedFarm.id}
-                  center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
-                  initialPolygon={parseBoundaryPoints(selectedFarm)}
-                  height={440}
-                  readOnly
-                  showNdvi={ndviVisible}
-                  coOwners={selectedFarm.coOwners}
-                  gatNumber={selectedFarm.gatNumber}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Boundary Editor Header & Action Bar */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: isEditingBoundary ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `1px solid ${isEditingBoundary ? '#10b981' : 'var(--border-subtle)'}`,
+                      flexWrap: 'wrap',
+                      gap: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isEditingBoundary ? '#34d399' : 'var(--text-heading)' }}>
+                        {isEditingBoundary ? '✏️ Interactive Boundary Adjustment Mode' : '📍 Cadastral Boundary View'}
+                      </span>
+                      {isEditingBoundary && (
+                        <span style={{ fontSize: '0.8rem', color: '#93c5fd', background: 'rgba(59, 130, 246, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                          Real-time Area: <strong>{computePolygonAreaAcres(editedBoundaryPoints || parseBoundaryPoints(selectedFarm))} Acres</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {isEditingBoundary ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{
+                              fontSize: '0.82rem',
+                              padding: '6px 14px',
+                              background: '#10b981',
+                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            onClick={handleSaveBoundary}
+                            disabled={isSavingBoundary}
+                          >
+                            <Save size={14} />
+                            <span>{isSavingBoundary ? 'Saving…' : 'Save Adjusted Boundary'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm))}
+                            disabled={isSavingBoundary}
+                          >
+                            <RotateCcw size={14} />
+                            <span>Reset</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                            onClick={() => {
+                              setIsEditingBoundary(false);
+                              setEditedBoundaryPoints(null);
+                            }}
+                            disabled={isSavingBoundary}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={{
+                            fontSize: '0.82rem',
+                            padding: '6px 14px',
+                            background: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          onClick={() => {
+                            setIsEditingBoundary(true);
+                            setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
+                          }}
+                        >
+                          <Edit3 size={14} />
+                          <span>Adjust Boundary Vertices</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {boundarySaveSuccess && (
+                    <div style={{
+                      padding: '8px 12px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid #10b981',
+                      borderRadius: '6px',
+                      color: '#34d399',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <Check size={16} />
+                      <span>Farm parcel boundary and spatial acreage updated successfully!</span>
+                    </div>
+                  )}
+
+                  <FarmMapEditor
+                    key={`${selectedFarm.id}-${isEditingBoundary ? 'edit' : 'view'}`}
+                    center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
+                    initialPolygon={editedBoundaryPoints || parseBoundaryPoints(selectedFarm)}
+                    height={440}
+                    readOnly={!isEditingBoundary}
+                    showNdvi={ndviVisible}
+                    coOwners={selectedFarm.coOwners}
+                    gatNumber={selectedFarm.gatNumber}
+                    onChange={(pts) => {
+                      setEditedBoundaryPoints(pts);
+                    }}
+                  />
+                </div>
               )}
               {/* Action buttons */}
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.84rem',
+                    background: mapViewMode === 'editor' && isEditingBoundary ? 'rgba(16,185,129,0.18)' : undefined,
+                    borderColor: mapViewMode === 'editor' && isEditingBoundary ? '#10b981' : undefined,
+                    color: mapViewMode === 'editor' && isEditingBoundary ? '#10b981' : undefined
+                  }}
+                  onClick={() => {
+                    setMapViewMode('editor');
+                    setIsEditingBoundary(true);
+                    setEditedBoundaryPoints(parseBoundaryPoints(selectedFarm));
+                  }}
+                >
+                  <Edit3 size={14} />
+                  <span>Adjust Boundary</span>
+                </button>
                 {(selectedFarm?.boundaryGeoJson || selectedFarm?.boundary_geojson) && (
                   <button
                     className="btn-secondary"
@@ -685,25 +899,12 @@ export const FarmsPage: React.FC = () => {
                 center={{ lat: 18.4875, lng: 74.1332 }}
                 height={460}
                 ownerName={effectiveOwnerName}
-                ulpin={generateDynamicUlpin({
-                  state: profile?.state || 'Maharashtra',
-                  district: profile?.district || 'Pune',
-                  taluka: profile?.taluka || 'Baramati',
-                  village: profile?.village || 'Malegaon',
-                  gatNumber: 'Gat 124/A',
-                  areaAcres: 4.0
-                })}
-                farmName={profile?.name ? `${profile.name}'s Agricultural Holding` : 'Primary Farmland Plot'}
-                areaAcres={4.0}
-                gatNumber="Gat 124/A"
-                village={profile?.village || 'Malegaon'}
-                taluka={profile?.taluka || 'Baramati'}
-                district={profile?.district || 'Pune'}
-                state={profile?.state || 'Maharashtra'}
+                hasRealFarm={false}
+                onRegisterClick={() => setShowModal(true)}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Showing 2D Cadastral Spatial representation for <strong style={{ color: '#38bdf8' }}>{effectiveOwnerName}</strong>. Register your holding to bind custom survey bounds.
+                  No farm plot registered yet for <strong style={{ color: '#38bdf8' }}>{effectiveOwnerName}</strong>. Register your holding to bind custom cadastral survey bounds.
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn-primary" style={{ fontSize: '0.84rem' }} onClick={() => setShowModal(true)}>

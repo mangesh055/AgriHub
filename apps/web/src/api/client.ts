@@ -71,6 +71,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(farm)
     }),
+  updateFarm: (id: string, updates: any) =>
+    apiRequest<any>(`/farms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    }),
   deleteFarm: (id: string) =>
     apiRequest<{ success: boolean; message: string }>(`/farms/${id}`, {
       method: 'DELETE'
