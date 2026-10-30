@@ -14,7 +14,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('agrihub_theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark';
+    return 'light';
   });
 
   useEffect(() => {
