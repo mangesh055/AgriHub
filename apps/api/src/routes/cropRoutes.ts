@@ -40,9 +40,15 @@ cropRouter.post('/recommendations', async (req: Request, res: Response) => {
 });
 
 // Disease Diagnosis
-cropRouter.post('/:cropCycleId/diagnose', (req: Request, res: Response) => {
-  const { farmId, imageFileName } = req.body;
-  const result = DiseaseService.diagnose(req.params.cropCycleId, farmId, imageFileName);
+cropRouter.post('/:cropCycleId/diagnose', async (req: Request, res: Response) => {
+  const { farmId, imageFileName, imageBase64, crop } = req.body;
+  const result = await DiseaseService.diagnose(
+    req.params.cropCycleId,
+    farmId || '33333333-3333-3333-3333-333333333333',
+    imageFileName || 'leaf_sample.jpg',
+    imageBase64,
+    crop || 'auto'
+  );
 
   const existing = store.diseaseDiagnoses.get(req.params.cropCycleId) || [];
   existing.unshift(result);

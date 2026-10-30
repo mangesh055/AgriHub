@@ -1,13 +1,40 @@
+import sys
+import os
+from pathlib import Path
+
+# Add Crop recommendation/agrihub-ml to path for shared disease_engine
+ml_app_dir = Path(__file__).resolve().parent.parent.parent / "Crop recommendation" / "agrihub-ml"
+if str(ml_app_dir) not in sys.path:
+    sys.path.insert(0, str(ml_app_dir))
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-import random
 import datetime
+
+try:
+    from app.disease_engine import diagnose_leaf, CROP_DISPLAY_NAMES
+except Exception:
+    # If app import fails, try direct import
+    try:
+        from disease_engine import diagnose_leaf, CROP_DISPLAY_NAMES
+    except Exception:
+        diagnose_leaf = None
+        CROP_DISPLAY_NAMES = {}
 
 app = FastAPI(
     title="AgriHub Machine Learning & Agronomic Intelligence Service",
-    description="Inference endpoints for crop recommendation, disease classification, and price forecasting.",
+    description="Inference endpoints for crop recommendation and HuggingFace ConvNeXt disease classification.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/health")
@@ -15,6 +42,7 @@ def health_check():
     return {
         "status": "online",
         "service": "AgriHub ML Engine",
+        "vision_models": "HuggingFace ixrbhii/multicrop-disease-models",
         "timestamp": datetime.datetime.utcnow().isoformat()
     }
 
@@ -84,7 +112,6 @@ def recommend_crops(req: RecommendationRequest):
         projected_roi_pct=38.5
     ))
     
-    # Sort top candidates
     candidates.sort(key=lambda x: x.suitability_score, reverse=True)
     
     return RecommendationResponse(
@@ -93,35 +120,30 @@ def recommend_crops(req: RecommendationRequest):
         timestamp=datetime.datetime.utcnow().isoformat()
     )
 
+@app.post("/api/v1/diagnose-disease")
 @app.post("/v1/diagnose-disease")
-async def diagnose_disease(
-    crop: str = Form("Soybean"),
+async def diagnose_disease_endpoint(payload: Dict[str, Any]):
+    image_data = payload.get("image") or payload.get("imageBase64") or payload.get("imageUrl")
+    if not image_data:
+        raise HTTPException(status_code=400, detail="Missing 'image' or 'imageBase64' field.")
+    crop = payload.get("crop") or payload.get("cropName") or "auto"
+    if diagnose_leaf:
+        return diagnose_leaf(image_data, crop_requested=crop)
+    raise HTTPException(status_code=500, detail="Disease inference engine not initialized.")
+
+@app.post("/api/v1/diagnose-disease-upload")
+@app.post("/v1/diagnose-disease-upload")
+async def diagnose_disease_upload(
+    crop: str = Form("auto"),
     image: UploadFile = File(...)
 ):
     if not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image (jpeg/png)")
     
-    # Simulated EfficientNet/ResNet model response with certainty calibration
-    confidence = 94.2
-    return {
-        "crop_detected": crop,
-        "disease_name": "Cercospora Leaf Spot / Early Blight",
-        "confidence_pct": confidence,
-        "status": "CONFIRMED" if confidence >= 75.0 else "UNCERTAIN",
-        "severity": "HIGH",
-        "symptoms": [
-            "Concentric necrotic rings on trifoliate leaf lamina",
-            "Yellow halo around dark lesions"
-        ],
-        "treatment_organic": [
-            "Neem oil spray (10,000 ppm) @ 3ml/L",
-            "Trichoderma harzianum foliar application"
-        ],
-        "treatment_chemical": [
-            "Carbendazim 12% + Mancozeb 63% WP (Saaf) @ 2g/L",
-            "Azoxystrobin 18.2% + Difenoconazole 11.4% SC @ 1ml/L"
-        ]
-    }
+    content = await image.read()
+    if diagnose_leaf:
+        return diagnose_leaf(content, crop_requested=crop)
+    raise HTTPException(status_code=500, detail="Disease inference engine not initialized.")
 
 if __name__ == "__main__":
     import uvicorn

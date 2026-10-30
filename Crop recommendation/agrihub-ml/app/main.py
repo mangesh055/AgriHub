@@ -1,17 +1,18 @@
-from fastapi import FastAPI, HTTPException, Security, Depends, status
+from fastapi import FastAPI, HTTPException, Security, Depends, status, UploadFile, File, Form
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from app.config import API_KEY_NAME, API_KEY
 from app.schemas import RecommendationRequest, RecommendationResponse
 from app.predictor import predictor
+from app.disease_engine import diagnose_leaf, CROP_DISPLAY_NAMES
 
 app = FastAPI(
-    title="AgriHub Baramati Crop Recommendation Service",
+    title="AgriHub Baramati Crop Recommendation & Computer Vision Disease Diagnostics Service",
     description=(
-        "Hyper-local ML Engine specialized for Baramati, Pune District. "
-        "Calibrated with verified research from ICAR-NIASM (Malegaon Khurd) and KVK Baramati (Shardanagar)."
+        "Hyper-local ML Engine specialized for Baramati, Pune District and multi-crop leaf health analysis. "
+        "Calibrated with verified research from ICAR-NIASM, KVK Baramati, and HuggingFace ixrbhii/multicrop-disease-models."
     ),
     version="1.0.0",
     docs_url="/docs",
@@ -40,13 +41,15 @@ def verify_api_key(key: str = Security(api_key_header)):
 @app.get("/", tags=["Health & Info"])
 def root():
     return {
-        "service": "AgriHub Crop Recommendation ML Engine",
+        "service": "AgriHub Crop Recommendation & Disease ML Engine",
         "status": "online",
         "region": "Baramati (ICAR-NIASM & KVK Baramati)",
         "model_version": predictor.metadata.get("model_version", "agrihub-baramati-v1.0.0"),
+        "vision_models": "HuggingFace ixrbhii/multicrop-disease-models (ConvNeXt-Small)",
         "top3_accuracy": predictor.metadata.get("metrics", {}).get("test_top3_accuracy", 1.0),
         "docs_url": "/docs",
-        "api_endpoint": "POST /api/v1/recommend"
+        "recommendation_endpoint": "POST /api/v1/recommend",
+        "disease_diagnostic_endpoint": "POST /api/v1/diagnose-disease"
     }
 
 @app.get("/health", tags=["Health & Info"])
@@ -57,7 +60,8 @@ def health_check():
             "model_pipeline": predictor.model is not None,
             "classes_count": len(predictor.classes),
             "regional_lookup_entries": len(predictor.regional_lookup),
-            "crop_profiles_count": len(predictor.crop_profiles)
+            "crop_profiles_count": len(predictor.crop_profiles),
+            "disease_vision_ready": True
         }
     }
 
@@ -131,4 +135,57 @@ def list_baramati_villages(_auth: str = Depends(verify_api_key)):
 def model_metadata(_auth: str = Depends(verify_api_key)):
     """Get Baramati ML training metrics and feature specifications."""
     return predictor.metadata
-    return predictor.metadata
+
+# =========================================================================
+# Computer Vision Crop Health & Disease Diagnostics (HuggingFace ConvNeXt)
+# =========================================================================
+@app.post("/api/v1/diagnose-disease", tags=["Crop Disease Diagnostics"])
+@app.post("/v1/diagnose-disease", tags=["Crop Disease Diagnostics"])
+def diagnose_crop_disease(payload: Dict[str, Any]):
+    """
+    Deep learning leaf disease diagnostics powered by HuggingFace ixrbhii/multicrop-disease-models.
+    Supports base64 data URLs, raw base64, or image file paths.
+    """
+    image_data = payload.get("image") or payload.get("imageBase64") or payload.get("imageUrl")
+    if not image_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing leaf image. Provide 'image' or 'imageBase64' in JSON body."
+        )
+
+    crop = payload.get("crop") or payload.get("cropName") or "auto"
+    try:
+        result = diagnose_leaf(image_data, crop_requested=crop)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Disease classification inference failed: {str(e)}"
+        )
+
+@app.post("/api/v1/diagnose-disease-upload", tags=["Crop Disease Diagnostics"])
+async def diagnose_crop_disease_upload(
+    crop: str = Form("auto"),
+    image: UploadFile = File(...)
+):
+    """Multipart file upload endpoint for leaf images."""
+    try:
+        image_bytes = await image.read()
+        result = diagnose_leaf(image_bytes, crop_requested=crop)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image upload diagnosis failed: {str(e)}"
+        )
+
+@app.get("/api/v1/supported-disease-crops", tags=["Crop Disease Diagnostics"])
+def get_supported_disease_crops():
+    """List crops supported by HuggingFace multi-crop ConvNeXt models."""
+    return {
+        "count": len(CROP_DISPLAY_NAMES),
+        "crops": [
+            {"key": k, "displayName": v}
+            for k, v in CROP_DISPLAY_NAMES.items()
+        ]
+    }
