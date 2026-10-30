@@ -21,6 +21,7 @@ import {
 import { api, API_BASE_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { FarmRegistrationMap, LatLng, generateBoxBoundary } from './FarmRegistrationMap';
 
 interface FarmRequiredModalProps {
   featureName: string;
@@ -134,6 +135,11 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
   const [locatingGps, setLocatingGps] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Interactive Farm Boundary Points for GIS Registration
+  const [boundaryPoints, setBoundaryPoints] = useState<LatLng[]>(() =>
+    generateBoxBoundary(parseFloat(farmData.latitude) || 18.1519, parseFloat(farmData.longitude) || 74.5771, parseFloat(farmData.areaAcres) || 4.0)
+  );
 
   // Crop Land Allocation (Planned land usage breakdown)
   const [cropAllocations, setCropAllocations] = useState<Array<{
@@ -263,11 +269,14 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
     setLocatingGps(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const newLat = Number(pos.coords.latitude.toFixed(5));
+        const newLng = Number(pos.coords.longitude.toFixed(5));
         setFarmData((prev) => ({
           ...prev,
-          latitude: pos.coords.latitude.toFixed(4),
-          longitude: pos.coords.longitude.toFixed(4)
+          latitude: String(newLat),
+          longitude: String(newLng)
         }));
+        setBoundaryPoints(generateBoxBoundary(newLat, newLng, parseFloat(farmData.areaAcres) || 4.0));
         setLocatingGps(false);
       },
       (err) => {
@@ -421,6 +430,20 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
           })
         : undefined;
 
+      let finalBoundaryGeoJson: any = null;
+      const ptsToUse = boundaryPoints && boundaryPoints.length >= 3
+        ? boundaryPoints
+        : generateBoxBoundary(parseFloat(farmData.latitude) || 18.1519, parseFloat(farmData.longitude) || 74.5771, parseFloat(farmData.areaAcres) || 4.0);
+
+      if (ptsToUse.length >= 3) {
+        const coords = ptsToUse.map((p) => [p.lng, p.lat]);
+        coords.push([ptsToUse[0].lng, ptsToUse[0].lat]); // close polygon ring
+        finalBoundaryGeoJson = {
+          type: 'Polygon',
+          coordinates: [coords]
+        };
+      }
+
       const createdFarm = await api.createFarm({
         name: farmData.name.trim() || 'My Farm Plot',
         areaAcres: parseFloat(farmData.areaAcres) || 1.0,
@@ -435,8 +458,9 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
         district: farmData.district.trim(),
         state: farmData.state.trim(),
         locationName: locationFull,
-        latitude: parseFloat(farmData.latitude) || 18.4875,
-        longitude: parseFloat(farmData.longitude) || 74.1332,
+        latitude: parseFloat(farmData.latitude) || 18.1519,
+        longitude: parseFloat(farmData.longitude) || 74.5771,
+        boundaryGeoJson: finalBoundaryGeoJson,
         notes: farmData.notes
       });
 
@@ -1093,7 +1117,7 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
             </div>
 
             {/* GPS Coordinates */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
               <div>
                 <label className="form-label-muted">{t('gpsLatLabel', 'GPS Latitude')}</label>
                 <input
@@ -1102,7 +1126,7 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
                   className="form-input"
                   value={farmData.latitude}
                   onChange={(e) => setFarmData({ ...farmData, latitude: e.target.value })}
-                  placeholder="e.g. 18.4875"
+                  placeholder="e.g. 18.1519"
                 />
               </div>
               <div>
@@ -1113,9 +1137,49 @@ export const FarmRequiredModal: React.FC<FarmRequiredModalProps> = ({
                   className="form-input"
                   value={farmData.longitude}
                   onChange={(e) => setFarmData({ ...farmData, longitude: e.target.value })}
-                  placeholder="e.g. 74.1332"
+                  placeholder="e.g. 74.5771"
                 />
               </div>
+            </div>
+
+            {/* Interactive Satellite Boundary & Location Map */}
+            <div>
+              <label className="form-label" style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Navigation size={15} color="#10b981" />
+                  <span>{language === 'mr' ? 'उपग्रह नकाशा व प्रत्यक्ष शेत सीमा (Satellite Cadastral Boundary)' : 'Satellite Farm Boundary & Location Mapping'}</span>
+                </span>
+                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 600 }}>
+                  {language === 'mr' ? 'नकाशावर प्रत्यक्ष जमीन पाहून सीमा निश्चित करा' : 'Drag Pins to Adjust Boundary & Centroid'}
+                </span>
+              </label>
+
+              <FarmRegistrationMap
+                latitude={parseFloat(farmData.latitude) || 18.1519}
+                longitude={parseFloat(farmData.longitude) || 74.5771}
+                village={farmData.village}
+                taluka={farmData.taluka}
+                district={farmData.district}
+                areaAcres={parseFloat(farmData.areaAcres) || 4.0}
+                boundaryPoints={boundaryPoints}
+                onLocationChange={(newLat, newLng) => {
+                  setFarmData((prev) => ({
+                    ...prev,
+                    latitude: String(newLat),
+                    longitude: String(newLng)
+                  }));
+                }}
+                onBoundaryChange={(newPoints) => {
+                  setBoundaryPoints(newPoints);
+                }}
+                onSyncAreaToBoundary={(calculatedAcres) => {
+                  setFarmData((prev) => ({
+                    ...prev,
+                    areaAcres: String(calculatedAcres)
+                  }));
+                }}
+                height={360}
+              />
             </div>
           </div>
 
