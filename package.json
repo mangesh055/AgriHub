@@ -9,13 +9,18 @@
   ],
   "scripts": {
     "dev": "concurrently -n \"api,web\" -c \"green,cyan\" \"npm run dev:api\" \"npm run dev:web\"",
+    "predev": "npm run build:contracts",
     "dev:all": "concurrently -n \"api,web,ml\" -c \"green,cyan,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run ml\"",
+    "predev:api": "npm run build:contracts",
     "dev:api": "npm run dev --workspace=@agrihub/api",
     "dev:web": "npm run dev --workspace=@agrihub/web",
     "ml": "python -m uvicorn app.main:app --port 8000 --app-dir \"Crop recommendation/agrihub-ml\"",
+    "prebuild": "npm run build:contracts",
     "build": "npm run build --workspaces --if-present",
     "build:contracts": "npm run build --workspace=@agrihub/contracts",
+    "prebuild:api": "npm run build:contracts",
     "build:api": "npm run build --workspace=@agrihub/api",
+    "prebuild:web": "npm run build:contracts",
     "build:web": "npm run build --workspace=@agrihub/web",
     "start": "node apps/api/dist/index.js",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""

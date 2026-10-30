@@ -21,6 +21,7 @@ import { EconomicsPage } from './pages/EconomicsPage';
 import { SchemesSeedsPage } from './pages/SchemesSeedsPage';
 import { AssistantPage } from './pages/AssistantPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { Cadastre3DPage } from './pages/Cadastre3DPage';
 
 // Main App Layout with Navbar and Footer
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -101,6 +102,17 @@ export const App: React.FC = () => {
                 <ProtectedRoute>
                   <AppLayout>
                     <FarmsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/cadastre-3d"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Cadastre3DPage />
                   </AppLayout>
                 </ProtectedRoute>
               }

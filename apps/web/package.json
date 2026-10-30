@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@agrihub/contracts": "*",
+    "@types/three": "^0.186.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.29.0",
-    "recharts": "^2.15.1"
+    "recharts": "^2.15.1",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.16",

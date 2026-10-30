@@ -17,7 +17,8 @@ import {
   Moon,
   Languages,
   User,
-  PlusCircle
+  PlusCircle,
+  Box
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -37,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = () => {
   const navItems = [
     { path: '/', label: t('navDashboard', 'Dashboard'), icon: LayoutDashboard },
     { path: '/farms', label: t('navFarms', 'My Farms'), icon: MapPin },
+    { path: '/cadastre-3d', label: '3D Farm Cadastre', icon: Box },
     { path: '/crop-plan', label: t('navCropPlan', 'Crop Plan'), icon: Compass },
     { path: '/weather', label: t('navWeather', 'Weather & Radar'), icon: CloudRain },
     { path: '/irrigation', label: t('navIrrigation', 'IoT Irrigation'), icon: Droplets },

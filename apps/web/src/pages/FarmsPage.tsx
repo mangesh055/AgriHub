@@ -11,15 +11,20 @@ import {
   Trash2,
   PieChart,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  Box
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
+import { Farm2DCadastreMap } from '../components/Farm2DCadastreMap';
 
 export const FarmsPage: React.FC = () => {
-  const { refreshAuth } = useAuth();
+  const { refreshAuth, profile, user } = useAuth();
+  const farmerName = profile?.name || 'Om';
+  const [mapViewMode, setMapViewMode] = useState<'cadastre2d' | 'editor'>('cadastre2d');
   const [farms, setFarms] = useState<any[]>([]);
   const [selectedFarm, setSelectedFarm] = useState<any>(null);
   const [soilRecords, setSoilRecords] = useState<any[]>([]);
@@ -334,16 +339,72 @@ export const FarmsPage: React.FC = () => {
           {/* Real Leaflet Map */}
           {selectedFarm ? (
             <>
-              <FarmMapEditor
-                key={selectedFarm.id}
-                center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
-                initialPolygon={parseBoundaryPoints(selectedFarm)}
-                height={440}
-                readOnly
-                showNdvi={ndviVisible}
-                coOwners={selectedFarm.coOwners}
-                gatNumber={selectedFarm.gatNumber}
-              />
+              {/* Map View Switcher: 2D Cadastre vs Boundary Editor */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px', background: 'rgba(255, 255, 255, 0.04)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setMapViewMode('cadastre2d')}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: mapViewMode === 'cadastre2d' ? '#0284c7' : 'transparent',
+                      color: mapViewMode === 'cadastre2d' ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    🛰️ 2D Cadastre Map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMapViewMode('editor')}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: mapViewMode === 'editor' ? '#10b981' : 'transparent',
+                      color: mapViewMode === 'editor' ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    ✏️ Boundary & NDVI Editor
+                  </button>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {mapViewMode === 'cadastre2d' ? '✨ 2D Cadastral Spatial Parcel' : 'Interactive Vertex Editor'}
+                </span>
+              </div>
+
+              {mapViewMode === 'cadastre2d' ? (
+                <Farm2DCadastreMap
+                  key={`cadastre-${selectedFarm.id}`}
+                  center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
+                  polygonPoints={parseBoundaryPoints(selectedFarm)}
+                  height={440}
+                  ownerName={farmerName}
+                  farmName={selectedFarm.name}
+                  areaAcres={Number(selectedFarm.areaAcres)}
+                  gatNumber={selectedFarm.gatNumber || 'Gat 142/A'}
+                />
+              ) : (
+                <FarmMapEditor
+                  key={selectedFarm.id}
+                  center={{ lat: Number(selectedFarm.latitude), lng: Number(selectedFarm.longitude) }}
+                  initialPolygon={parseBoundaryPoints(selectedFarm)}
+                  height={440}
+                  readOnly
+                  showNdvi={ndviVisible}
+                  coOwners={selectedFarm.coOwners}
+                  gatNumber={selectedFarm.gatNumber}
+                />
+              )}
               {/* Action buttons */}
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
                 {(selectedFarm?.boundaryGeoJson || selectedFarm?.boundary_geojson) && (
@@ -356,6 +417,18 @@ export const FarmsPage: React.FC = () => {
                     <span>Export Boundary GeoJSON</span>
                   </button>
                 )}
+                <Link
+                  to="/cadastre-3d"
+                  className="btn-primary"
+                  style={{
+                    fontSize: '0.84rem',
+                    background: '#0284c7',
+                    boxShadow: '0 2px 10px rgba(2, 132, 199, 0.4)'
+                  }}
+                >
+                  <Box size={14} />
+                  <span>View in 3D Cadastre (ULPIN)</span>
+                </Link>
                 <button
                   className="btn-secondary"
                   style={{
@@ -574,10 +647,40 @@ export const FarmsPage: React.FC = () => {
               )}
             </>
           ) : (
-            <div style={{ flex: 1, minHeight: '440px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: 'var(--text-muted)' }}>
-              <MapPin size={40} color="#10b981" style={{ opacity: 0.4 }} />
-              <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>Select a farm to view its boundary</p>
-              <p style={{ fontSize: '0.82rem' }}>Register a farm plot first to see the GIS map.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <Farm2DCadastreMap
+                center={{ lat: 18.5034, lng: 73.8203 }}
+                height={460}
+                ownerName={farmerName}
+                ulpin="MH-PN-KT-P125-B02-F05-U501"
+                farmName="Kothrud Agro-Cadastre Complex & Precision Plot"
+                areaAcres={4.85}
+                gatNumber="Gat 142/A"
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Showing 2D Cadastral Spatial representation for <strong style={{ color: '#38bdf8' }}>{farmerName}</strong>. Register your holding to bind custom survey bounds.
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn-primary" style={{ fontSize: '0.84rem' }} onClick={() => setShowModal(true)}>
+                    <Plus size={14} />
+                    <span>Register Farm Plot</span>
+                  </button>
+                  <Link
+                    to="/cadastre-3d"
+                    className="btn-secondary"
+                    style={{
+                      fontSize: '0.84rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Box size={14} color="#0284c7" />
+                    <span>View in 3D Cadastre</span>
+                  </Link>
+                </div>
+              </div>
             </div>
           )}
         </div>
