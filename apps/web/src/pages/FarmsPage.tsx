@@ -15,10 +15,13 @@ import {
   Save,
   RotateCcw,
   Edit3,
-  Check
+  Check,
+  Eye
 } from 'lucide-react';
 import { api } from '../api/client';
 import { FarmRequiredModal } from '../components/FarmRequiredModal';
+import { FarmDetailsModal } from '../components/FarmDetailsModal';
+import { FarmEditModal } from '../components/FarmEditModal';
 import { useAuth } from '../context/AuthContext';
 import { FarmMapEditor, LatLng } from '../components/FarmMapEditor';
 import { generateDynamicUlpin } from '../components/Farm2DCadastreMap';
@@ -54,6 +57,10 @@ export const FarmsPage: React.FC = () => {
   const [ndviVisible, setNdviVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Farm viewing & editing modals
+  const [viewingFarm, setViewingFarm] = useState<any | null>(null);
+  const [editingFarm, setEditingFarm] = useState<any | null>(null);
 
   // Boundary & Co-owner editing state
   const [isEditingBoundary, setIsEditingBoundary] = useState(false);
@@ -94,8 +101,8 @@ export const FarmsPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await api.getFarms();
-      setFarms(data);
-      if (data.length > 0) {
+      if (Array.isArray(data) && data.length > 0) {
+        setFarms(data);
         const farmToSelect = preferredId
           ? data.find((f) => f.id === preferredId) || data[0]
           : data[0];
@@ -104,8 +111,7 @@ export const FarmsPage: React.FC = () => {
         const soils = await api.getSoilRecords(farmToSelect.id);
         setSoilRecords(soils);
       } else {
-        setSelectedFarm(null);
-        setSoilRecords([]);
+        setFarms((prev) => (prev.length > 0 ? prev : []));
       }
     } catch (err) {
       console.error('Error fetching farms:', err);
@@ -290,8 +296,56 @@ export const FarmsPage: React.FC = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <h4 style={{ fontSize: '0.98rem', fontWeight: 700 }}>{f.name}</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span className="badge badge-success">{f.areaAcres} Acres</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewingFarm(f);
+                        }}
+                        style={{
+                          background: 'rgba(56, 189, 248, 0.1)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          color: '#38bdf8',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'var(--transition-smooth)'
+                        }}
+                        title={`View details of ${f.name}`}
+                        aria-label={`View details of ${f.name}`}
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingFarm(f);
+                        }}
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          color: '#10b981',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'var(--transition-smooth)'
+                        }}
+                        title={`Edit ${f.name}`}
+                        aria-label={`Edit ${f.name}`}
+                      >
+                        <Edit3 size={14} />
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -444,7 +498,31 @@ export const FarmsPage: React.FC = () => {
                 Plot ID: {selectedFarm?.id ? `${selectedFarm.id.slice(0, 13)}…` : 'N/A'} • Centroid: {Number(selectedFarm?.latitude || 18.4875).toFixed(4)}°N, {Number(selectedFarm?.longitude || 74.1332).toFixed(4)}°E
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {selectedFarm && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setViewingFarm(selectedFarm)}
+                    title="View full registered farm details"
+                  >
+                    <Eye size={14} color="#38bdf8" />
+                    <span>View Details</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setEditingFarm(selectedFarm)}
+                    title="Edit farm holding details"
+                  >
+                    <Edit3 size={14} color="#10b981" />
+                    <span>Edit Farm</span>
+                  </button>
+                </>
+              )}
               <span className="badge badge-info">PostGIS ST_Polygon</span>
               <span className="badge badge-success">
                 {selectedFarm ? `${selectedFarm.areaAcres} Acres` : 'No Plot Selected'}
@@ -720,6 +798,27 @@ export const FarmsPage: React.FC = () => {
               {/* Action buttons */}
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
                 <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => setViewingFarm(selectedFarm)}
+                  title="View full registered farm details"
+                >
+                  <Eye size={14} color="#38bdf8" />
+                  <span>View Details</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => setEditingFarm(selectedFarm)}
+                  title="Edit farm holding details"
+                >
+                  <Edit3 size={14} color="#10b981" />
+                  <span>Edit Details</span>
+                </button>
+                <button
+                  type="button"
                   className="btn-secondary"
                   style={{
                     fontSize: '0.84rem',
@@ -1087,6 +1186,49 @@ export const FarmsPage: React.FC = () => {
           setShowModal(false);
           refreshAuth();
           loadFarms();
+        }}
+      />
+
+      {/* Comprehensive Registered Farm Details Modal */}
+      <FarmDetailsModal
+        farm={viewingFarm}
+        soilRecord={viewingFarm?.id === selectedFarm?.id ? latestSoil : undefined}
+        isOpen={!!viewingFarm}
+        onClose={() => setViewingFarm(null)}
+        onEdit={(f) => {
+          setViewingFarm(null);
+          setEditingFarm(f);
+        }}
+        onAdjustBoundary={(f) => {
+          setViewingFarm(null);
+          if (selectedFarm?.id !== f.id) {
+            handleSelectFarm(f);
+          }
+          startEditingBoundary();
+        }}
+        onExportGeoJson={(f) => exportGeoJSON(f)}
+      />
+
+      {/* Farm Edit Modal */}
+      <FarmEditModal
+        farm={editingFarm}
+        isOpen={!!editingFarm}
+        onClose={() => setEditingFarm(null)}
+        onSuccess={async (updated) => {
+          // 1. Immediately update both farms list and selectedFarm in local state
+          setFarms((prev) =>
+            prev.map((f) => (f.id === updated.id ? { ...f, ...updated } : f))
+          );
+          setSelectedFarm((prev: any) =>
+            prev?.id === updated.id ? { ...prev, ...updated } : (prev || updated)
+          );
+          setEditingFarm(null);
+          if (viewingFarm?.id === updated.id) {
+            setViewingFarm((prev: any) => ({ ...prev, ...updated }));
+          }
+          // 2. Sync with backend
+          await loadFarms(updated.id);
+          await refreshAuth();
         }}
       />
     </div>

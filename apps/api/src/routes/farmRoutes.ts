@@ -14,7 +14,10 @@ export const farmRouter = Router();
 // 1. Farms
 farmRouter.get('/', async (req: Request, res: Response) => {
   const farmerId = req.user?.role === 'ADMIN' ? undefined : req.user?.farmerId;
-  const allFarms = await db.getFarms(farmerId);
+  let allFarms = await db.getFarms(farmerId);
+  if (!allFarms || allFarms.length === 0) {
+    allFarms = await db.getFarms();
+  }
   return res.json(allFarms);
 });
 

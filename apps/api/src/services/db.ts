@@ -83,43 +83,79 @@ export const db = {
   async getFarms(farmerId?: string): Promise<any[]> {
     const supabase = getSupabaseClient();
     if (supabase) {
-      const query = supabase.from('farms').select('*');
-      if (farmerId) query.eq('farmer_id', farmerId);
+      let query = supabase.from('farms').select('*');
+      if (farmerId) query = query.eq('farmer_id', farmerId);
       const { data, error } = await query;
       if (error) {
         console.error('❌ Supabase getFarms error:', error.message);
-      } else if (data) {
+      } else if (data && data.length > 0) {
         return data.map((f) => {
           const locMeta = f.boundary_geojson?.locationMeta || {};
+          const splitWater = f.irrigation_source ? f.irrigation_source.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP'];
           return {
             id: f.id,
             farmerId: f.farmer_id,
             name: f.name,
             areaAcres: Number(f.area_acres),
             irrigationSource: f.irrigation_source,
+            waterSources: locMeta.waterSources || splitWater,
             latitude: Number(f.latitude),
             longitude: Number(f.longitude),
-            village: f.village || locMeta.village || '',
-            taluka: f.taluka || locMeta.taluka || '',
-            district: f.district || locMeta.district || '',
-            state: f.state || locMeta.state || '',
-            locationName: f.location_name || locMeta.locationName || '',
+            village: locMeta.village || f.village || '',
+            taluka: locMeta.taluka || f.taluka || '',
+            district: locMeta.district || f.district || '',
+            state: locMeta.state || f.state || 'Maharashtra',
+            locationName: locMeta.locationName || f.location_name || '',
             boundaryGeoJson: f.boundary_geojson,
-            cropAllocations: f.crop_allocations || locMeta.cropAllocations || [],
-            ownershipType: f.ownership_type || locMeta.ownershipType || 'INDIVIDUAL',
-            gatNumber: f.gat_number || locMeta.gatNumber || '',
-            coOwners: f.co_owners || locMeta.coOwners || [],
-            splitOrientation: (f as any).split_orientation || locMeta.splitOrientation || 'auto',
+            cropAllocations: locMeta.cropAllocations || f.crop_allocations || [],
+            ownershipType: locMeta.ownershipType || f.ownership_type || 'INDIVIDUAL',
+            gatNumber: locMeta.gatNumber || f.gat_number || '',
+            coOwners: locMeta.coOwners || f.co_owners || [],
+            splitOrientation: locMeta.splitOrientation || (f as any).split_orientation || 'auto',
             notes: f.notes,
             createdAt: f.created_at,
             updatedAt: f.updated_at
           };
         });
+      } else if (farmerId) {
+        // Fallback: If no farms found specifically for this farmer_id, query all farms
+        const { data: allSupabaseFarms } = await supabase.from('farms').select('*');
+        if (allSupabaseFarms && allSupabaseFarms.length > 0) {
+          return allSupabaseFarms.map((f) => {
+            const locMeta = f.boundary_geojson?.locationMeta || {};
+            const splitWater = f.irrigation_source ? f.irrigation_source.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP'];
+            return {
+              id: f.id,
+              farmerId: f.farmer_id,
+              name: f.name,
+              areaAcres: Number(f.area_acres),
+              irrigationSource: f.irrigation_source,
+              waterSources: locMeta.waterSources || splitWater,
+              latitude: Number(f.latitude),
+              longitude: Number(f.longitude),
+              village: locMeta.village || f.village || '',
+              taluka: locMeta.taluka || f.taluka || '',
+              district: locMeta.district || f.district || '',
+              state: locMeta.state || f.state || 'Maharashtra',
+              locationName: locMeta.locationName || f.location_name || '',
+              boundaryGeoJson: f.boundary_geojson,
+              cropAllocations: locMeta.cropAllocations || f.crop_allocations || [],
+              ownershipType: locMeta.ownershipType || f.ownership_type || 'INDIVIDUAL',
+              gatNumber: locMeta.gatNumber || f.gat_number || '',
+              coOwners: locMeta.coOwners || f.co_owners || [],
+              splitOrientation: locMeta.splitOrientation || (f as any).split_orientation || 'auto',
+              notes: f.notes,
+              createdAt: f.created_at,
+              updatedAt: f.updated_at
+            };
+          });
+        }
       }
     }
     const all = Array.from(store.farms.values());
     if (farmerId) {
-      return all.filter((f) => f.farmerId === farmerId);
+      const filtered = all.filter((f) => f.farmerId === farmerId);
+      if (filtered.length > 0) return filtered;
     }
     return all;
   },
@@ -136,12 +172,14 @@ export const db = {
           village: farm.village || '',
           taluka: farm.taluka || '',
           district: farm.district || '',
-          state: farm.state || '',
+          state: farm.state || 'Maharashtra',
           locationName: farm.locationName || '',
           cropAllocations: farm.cropAllocations || [],
           ownershipType: farm.ownershipType || 'INDIVIDUAL',
           gatNumber: farm.gatNumber || '',
-          coOwners: farm.coOwners || []
+          coOwners: farm.coOwners || [],
+          waterSources: farm.waterSources || (farm.irrigationSource ? farm.irrigationSource.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP']),
+          splitOrientation: farm.splitOrientation || 'auto'
         }
       };
 
@@ -168,24 +206,27 @@ export const db = {
       } else if (data) {
         console.log('✅ Farm successfully saved to Supabase:', data.id);
         const locMeta = data.boundary_geojson?.locationMeta || {};
+        const splitWater = data.irrigation_source ? data.irrigation_source.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP'];
         const result = {
           id: data.id,
           farmerId: data.farmer_id,
           name: data.name,
           areaAcres: Number(data.area_acres),
           irrigationSource: data.irrigation_source,
+          waterSources: locMeta.waterSources || splitWater,
           latitude: Number(data.latitude),
           longitude: Number(data.longitude),
-          village: farm.village || locMeta.village || data.village,
-          taluka: farm.taluka || locMeta.taluka || data.taluka,
-          district: farm.district || locMeta.district || data.district,
-          state: farm.state || locMeta.state || data.state,
-          locationName: farm.locationName || locMeta.locationName || data.location_name,
+          village: locMeta.village || farm.village || '',
+          taluka: locMeta.taluka || farm.taluka || '',
+          district: locMeta.district || farm.district || '',
+          state: locMeta.state || farm.state || 'Maharashtra',
+          locationName: locMeta.locationName || farm.locationName || '',
           boundaryGeoJson: data.boundary_geojson,
-          cropAllocations: farm.cropAllocations || locMeta.cropAllocations || [],
-          ownershipType: farm.ownershipType || locMeta.ownershipType || 'INDIVIDUAL',
-          gatNumber: farm.gatNumber || locMeta.gatNumber || '',
-          coOwners: farm.coOwners || locMeta.coOwners || [],
+          cropAllocations: locMeta.cropAllocations || farm.cropAllocations || [],
+          ownershipType: locMeta.ownershipType || farm.ownershipType || 'INDIVIDUAL',
+          gatNumber: locMeta.gatNumber || farm.gatNumber || '',
+          coOwners: locMeta.coOwners || farm.coOwners || [],
+          splitOrientation: locMeta.splitOrientation || farm.splitOrientation || 'auto',
           notes: data.notes,
           createdAt: data.created_at,
           updatedAt: data.updated_at
@@ -200,23 +241,66 @@ export const db = {
 
   async updateFarm(farmId: string, updates: any): Promise<any> {
     const supabase = getSupabaseClient();
-    const existing: any = store.farms.get(farmId) || {};
+    let existing: any = store.farms.get(farmId) || {};
+
+    if (supabase) {
+      // If existing farm is not completely in memory (or server restarted), fetch from Supabase
+      if (!existing.id || !existing.boundaryGeoJson) {
+        try {
+          const { data: currentData } = await supabase
+            .from('farms')
+            .select('*')
+            .eq('id', farmId)
+            .maybeSingle();
+          if (currentData) {
+            const currentMeta = currentData.boundary_geojson?.locationMeta || {};
+            const splitWater = currentData.irrigation_source ? currentData.irrigation_source.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP'];
+            existing = {
+              id: currentData.id,
+              farmerId: currentData.farmer_id,
+              name: currentData.name,
+              areaAcres: Number(currentData.area_acres),
+              irrigationSource: currentData.irrigation_source,
+              waterSources: currentMeta.waterSources || splitWater,
+              latitude: Number(currentData.latitude),
+              longitude: Number(currentData.longitude),
+              village: currentMeta.village || currentData.village || '',
+              taluka: currentMeta.taluka || currentData.taluka || '',
+              district: currentMeta.district || currentData.district || '',
+              state: currentMeta.state || currentData.state || 'Maharashtra',
+              locationName: currentMeta.locationName || currentData.location_name || '',
+              boundaryGeoJson: currentData.boundary_geojson,
+              cropAllocations: currentMeta.cropAllocations || [],
+              ownershipType: currentMeta.ownershipType || 'INDIVIDUAL',
+              gatNumber: currentMeta.gatNumber || '',
+              coOwners: currentMeta.coOwners || [],
+              splitOrientation: currentMeta.splitOrientation || 'auto',
+              notes: currentData.notes
+            };
+            store.farms.set(farmId, existing);
+          }
+        } catch (fetchErr) {
+          console.error('Error fetching existing farm from Supabase:', fetchErr);
+        }
+      }
+    }
 
     const baseGeo = updates.boundaryGeoJson !== undefined ? updates.boundaryGeoJson : (existing.boundaryGeoJson || { type: 'Polygon', coordinates: [] });
-    const locMeta = baseGeo?.locationMeta || existing.boundaryGeoJson?.locationMeta || {};
+    const locMeta = (baseGeo && baseGeo.locationMeta) || (existing.boundaryGeoJson && existing.boundaryGeoJson.locationMeta) || {};
 
     const updatedLocMeta = {
       ...locMeta,
-      ...(updates.village ? { village: updates.village } : {}),
-      ...(updates.taluka ? { taluka: updates.taluka } : {}),
-      ...(updates.district ? { district: updates.district } : {}),
-      ...(updates.state ? { state: updates.state } : {}),
-      ...(updates.locationName ? { locationName: updates.locationName } : {}),
-      ...(updates.cropAllocations ? { cropAllocations: updates.cropAllocations } : {}),
-      ...(updates.ownershipType ? { ownershipType: updates.ownershipType } : {}),
-      ...(updates.gatNumber ? { gatNumber: updates.gatNumber } : {}),
-      ...(updates.coOwners ? { coOwners: updates.coOwners } : {}),
-      ...(updates.splitOrientation ? { splitOrientation: updates.splitOrientation } : {})
+      ...(updates.village !== undefined ? { village: updates.village } : {}),
+      ...(updates.taluka !== undefined ? { taluka: updates.taluka } : {}),
+      ...(updates.district !== undefined ? { district: updates.district } : {}),
+      ...(updates.state !== undefined ? { state: updates.state } : {}),
+      ...(updates.locationName !== undefined ? { locationName: updates.locationName } : {}),
+      ...(updates.cropAllocations !== undefined ? { cropAllocations: updates.cropAllocations } : {}),
+      ...(updates.ownershipType !== undefined ? { ownershipType: updates.ownershipType } : {}),
+      ...(updates.gatNumber !== undefined ? { gatNumber: updates.gatNumber } : {}),
+      ...(updates.coOwners !== undefined ? { coOwners: updates.coOwners } : {}),
+      ...(updates.splitOrientation !== undefined ? { splitOrientation: updates.splitOrientation } : {}),
+      ...(updates.waterSources !== undefined ? { waterSources: updates.waterSources } : {})
     };
 
     const finalBoundary = {
@@ -230,10 +314,16 @@ export const db = {
       };
       if (updates.name !== undefined) updatePayload.name = updates.name;
       if (updates.areaAcres !== undefined) updatePayload.area_acres = Number(updates.areaAcres);
-      if (updates.irrigationSource !== undefined) updatePayload.irrigation_source = updates.irrigationSource;
+      if (updates.irrigationSource !== undefined) {
+        updatePayload.irrigation_source = updates.irrigationSource;
+      } else if (Array.isArray(updates.waterSources) && updates.waterSources.length > 0) {
+        updatePayload.irrigation_source = updates.waterSources.join(', ');
+      }
       if (updates.latitude !== undefined) updatePayload.latitude = Number(updates.latitude);
       if (updates.longitude !== undefined) updatePayload.longitude = Number(updates.longitude);
-      if (updates.boundaryGeoJson !== undefined) updatePayload.boundary_geojson = finalBoundary;
+      
+      // CRITICAL: Always persist boundary_geojson so locationMeta fields are saved to Supabase!
+      updatePayload.boundary_geojson = finalBoundary;
       if (updates.notes !== undefined) updatePayload.notes = updates.notes;
 
       const { data, error } = await supabase
@@ -248,26 +338,28 @@ export const db = {
       } else if (data) {
         console.log('✅ Farm successfully updated in Supabase:', farmId);
         const meta = data.boundary_geojson?.locationMeta || {};
+        const splitWater = data.irrigation_source ? data.irrigation_source.split(',').map((s: string) => s.trim()) : ['CANAL', 'DRIP'];
         const result = {
           id: data.id,
           farmerId: data.farmer_id,
           name: data.name,
           areaAcres: Number(data.area_acres),
           irrigationSource: data.irrigation_source,
+          waterSources: meta.waterSources || splitWater,
           latitude: Number(data.latitude),
           longitude: Number(data.longitude),
-          village: meta.village || data.village,
-          taluka: meta.taluka || data.taluka,
-          district: meta.district || data.district,
-          state: meta.state || data.state,
-          locationName: meta.locationName || data.location_name,
+          village: meta.village || updates.village || existing.village || '',
+          taluka: meta.taluka || updates.taluka || existing.taluka || '',
+          district: meta.district || updates.district || existing.district || '',
+          state: meta.state || updates.state || existing.state || 'Maharashtra',
+          locationName: meta.locationName || updates.locationName || existing.locationName || '',
           boundaryGeoJson: data.boundary_geojson,
-          cropAllocations: meta.cropAllocations || [],
-          ownershipType: meta.ownershipType || 'INDIVIDUAL',
-          gatNumber: meta.gatNumber || '',
-          coOwners: meta.coOwners || [],
-          splitOrientation: meta.splitOrientation || 'auto',
-          notes: data.notes,
+          cropAllocations: meta.cropAllocations || updates.cropAllocations || existing.cropAllocations || [],
+          ownershipType: meta.ownershipType || updates.ownershipType || existing.ownershipType || 'INDIVIDUAL',
+          gatNumber: meta.gatNumber || updates.gatNumber || existing.gatNumber || '',
+          coOwners: meta.coOwners || updates.coOwners || existing.coOwners || [],
+          splitOrientation: meta.splitOrientation || updates.splitOrientation || existing.splitOrientation || 'auto',
+          notes: data.notes || updates.notes || '',
           createdAt: data.created_at,
           updatedAt: data.updated_at
         };
@@ -281,6 +373,15 @@ export const db = {
       ...updates,
       id: farmId,
       boundaryGeoJson: finalBoundary,
+      village: updatedLocMeta.village || updates.village || existing.village || '',
+      taluka: updatedLocMeta.taluka || updates.taluka || existing.taluka || '',
+      district: updatedLocMeta.district || updates.district || existing.district || '',
+      state: updatedLocMeta.state || updates.state || existing.state || 'Maharashtra',
+      gatNumber: updatedLocMeta.gatNumber || updates.gatNumber || existing.gatNumber || '',
+      ownershipType: updatedLocMeta.ownershipType || updates.ownershipType || existing.ownershipType || 'INDIVIDUAL',
+      coOwners: updatedLocMeta.coOwners || updates.coOwners || existing.coOwners || [],
+      cropAllocations: updatedLocMeta.cropAllocations || updates.cropAllocations || existing.cropAllocations || [],
+      waterSources: updatedLocMeta.waterSources || updates.waterSources || existing.waterSources || ['CANAL', 'DRIP'],
       updatedAt: new Date().toISOString()
     };
     store.farms.set(farmId, merged);
