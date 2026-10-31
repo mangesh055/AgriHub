@@ -22,6 +22,8 @@ CROP_FOLDER_MAP = {
     "oryza sativa": "Rice",
     "maize": "Maize",
     "corn": "Maize",
+    "maka": "Maize",
+    "makka": "Maize",
     "zea mays": "Maize",
     "potato": "Potato",
     "solanum tuberosum": "Potato",
@@ -94,8 +96,8 @@ CROP_FOLDER_MAP = {
 CROP_DISPLAY_NAMES = {
     "Soybean": "Soybean (Glycine max)",
     "Tomato": "Tomato (Solanum lycopersicum)",
-    "Rice": "Rice (Oryza sativa)",
-    "Maize": "Maize / Corn (Zea mays)",
+    "Rice": "Rice / Paddy (Oryza sativa)",
+    "Maize": "Maize / Corn / मका (Zea mays)",
     "Potato": "Potato (Solanum tuberosum)",
     "Sugarcane": "Sugarcane (Saccharum officinarum)",
     "Grape": "Grape (Vitis vinifera)",
@@ -518,6 +520,54 @@ AGRONOMIC_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
             "Plant early in the season to evade peak rust spore showers",
             "Select rust-resistant hybrid maize cultivars (e.g. Pioneer, DKC, NK-6240)",
             "Destroy volunteer maize plants and alternative weed hosts like Oxalis"
+        ]
+    },
+    "Maize_Northern_leaf_blight": {
+        "disease_name": "Northern Corn Leaf Blight / Turcicum (Exserohilum turcicum)",
+        "severity": "HIGH",
+        "symptoms": [
+            "Long elliptical, cigar-shaped grayish-green to tan necrotic lesions (3 to 15 cm long) extending parallel to leaf veins",
+            "Lesions coalesce rapidly on lower and middle leaves, leading to extensive foliage firing and premature drying",
+            "Under humid overcast conditions, dark olive-black fungal sporulation appears in lesion centers"
+        ],
+        "organic_treatments": [
+            "Foliar bio-control spray of Trichoderma harzianum or Pseudomonas fluorescens @ 5g/L",
+            "Neem Seed Kernel Extract (NSKE 5%) or 10,000 ppm cold-pressed Neem Oil @ 3ml/L",
+            "Soil application of Trichoderma-enriched organic farmyard manure (FYM) @ 250 kg/acre"
+        ],
+        "chemical_controls": [
+            "Azoxystrobin 18.2% + Difenoconazole 11.4% SC (Amistar Top) @ 1ml/L water (protective & curative)",
+            "Mancozeb 75% WP (Indofil M-45) @ 2.5g/L water at first appearance of cigar lesions",
+            "Pyraclostrobin 20% WG @ 1g/L water with a 15-day pre-harvest interval"
+        ],
+        "prevention_tips": [
+            "Rotate crops for at least 1-2 years with non-graminaceous crops (Soybean, Chickpea, or Groundnut)",
+            "Adopt deep summer plowing to bury infected crop residue and destroy overwintering fungal mycelium",
+            "Select certified blight-tolerant hybrid maize cultivars (e.g. Pioneer 3396, DKC 9108, PAC 740)"
+        ]
+    },
+    "Maize_Gray_leaf_spot": {
+        "disease_name": "Gray Leaf Spot (Cercospora zeae-maydis)",
+        "severity": "HIGH",
+        "symptoms": [
+            "Small rectangular, tan to gray lesions strictly restricted between leaf veins",
+            "Lesions expand linearly into long rectangular blocks that turn grayish brown",
+            "Severe canopy blight resulting in premature stalk lodging and reduced grain fill"
+        ],
+        "organic_treatments": [
+            "Foliar bio-agent application of Bacillus subtilis @ 5ml/L water",
+            "Panchagavya (3%) foliar spray to boost systemic foliar vigor",
+            "Prompt removal and deep burial of heavily blighted lower leaves"
+        ],
+        "chemical_controls": [
+            "Azoxystrobin 23% SC @ 1ml/L water",
+            "Propiconazole 25% EC (Tilt) @ 1ml/L water",
+            "Chlorothalonil 75% WP @ 2g/L preventive spray"
+        ],
+        "prevention_tips": [
+            "Ensure 60cm row spacing to facilitate canopy ventilation and quick dew drying",
+            "Avoid planting continuous maize in zero-till fields with heavy crop stubble",
+            "Apply balanced potassium (K) nutrition to enhance leaf tissue toughness"
         ]
     },
     # Potato

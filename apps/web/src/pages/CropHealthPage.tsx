@@ -47,27 +47,27 @@ interface DiagnosisResult {
 
 const SUPPORTED_CROPS = [
   { value: 'auto', label: '✨ Auto-Detect Crop (ConvNeXt Vision)' },
-  { value: 'Soybean', label: 'Soybean (Glycine max)' },
-  { value: 'Tomato', label: 'Tomato (Solanum lycopersicum)' },
-  { value: 'Rice', label: 'Rice / Paddy (Oryza sativa)' },
-  { value: 'Maize', label: 'Maize / Corn (Zea mays)' },
-  { value: 'Potato', label: 'Potato (Solanum tuberosum)' },
-  { value: 'Sugarcane', label: 'Sugarcane (Saccharum officinarum)' },
-  { value: 'Grape', label: 'Grape (Vitis vinifera)' },
-  { value: 'Mango', label: 'Mango (Mangifera indica)' },
-  { value: 'Cotton', label: 'Bt Cotton (Gossypium)' },
-  { value: 'okra', label: 'Okra / Bhindi (Abelmoschus esculentus)' },
-  { value: 'Brinjal', label: 'Brinjal / Eggplant (Solanum melongena)' },
-  { value: 'pomrgranet', label: 'Pomegranate / Dalimb (Punica granatum)' },
-  { value: 'Cucumber', label: 'Cucumber (Cucumis sativus)' },
-  { value: 'Bitter_gourd', label: 'Bitter Gourd / Karela (Momordica charantia)' },
-  { value: 'Bottle_gourd', label: 'Bottle Gourd / Lauki (Lagenaria siceraria)' },
+  { value: 'Maize', label: '🌽 Maize / Corn / मका (Zea mays)' },
+  { value: 'Soybean', label: '🫘 Soybean / सोयाबीन (Glycine max)' },
+  { value: 'Rice', label: '🌾 Rice / Paddy / भात (Oryza sativa)' },
+  { value: 'Cotton', label: '☁️ Bt Cotton / कापूस (Gossypium)' },
+  { value: 'Sugarcane', label: '🎋 Sugarcane / ऊस (Saccharum officinarum)' },
+  { value: 'Tomato', label: '🍅 Tomato / टोमॅटो (Solanum lycopersicum)' },
+  { value: 'Potato', label: '🥔 Potato / बटाटा (Solanum tuberosum)' },
+  { value: 'Grape', label: '🍇 Grape / द्राक्ष (Vitis vinifera)' },
+  { value: 'Mango', label: '🥭 Mango / आंबा (Mangifera indica)' },
+  { value: 'pomrgranet', label: '🍎 Pomegranate / डाळिंब (Punica granatum)' },
+  { value: 'okra', label: '🌱 Okra / Bhindi / भेंडी (Abelmoschus esculentus)' },
+  { value: 'Brinjal', label: '🍆 Brinjal / Eggplant / वांगी (Solanum melongena)' },
+  { value: 'Cucumber', label: '🥒 Cucumber / काकडी (Cucumis sativus)' },
+  { value: 'Bitter_gourd', label: 'Bitter Gourd / कारले (Momordica charantia)' },
+  { value: 'Bottle_gourd', label: 'Bottle Gourd / दुधी भोपळा (Lagenaria siceraria)' },
   { value: 'Apple', label: 'Apple (Malus domestica)' },
-  { value: 'Banana', label: 'Banana (Musa acuminata)' },
-  { value: 'Citrus', label: 'Citrus / Sweet Lime (Citrus sinensis)' },
-  { value: 'Papaya', label: 'Papaya (Carica papaya)' },
+  { value: 'Banana', label: 'Banana / केळी (Musa acuminata)' },
+  { value: 'Citrus', label: 'Citrus / मोसंबी / लिंबू (Citrus sinensis)' },
+  { value: 'Papaya', label: 'Papaya / पपई (Carica papaya)' },
   { value: 'Strawberry', label: 'Strawberry (Fragaria × ananassa)' },
-  { value: 'Watermelon', label: 'Watermelon (Citrullus lanatus)' },
+  { value: 'Watermelon', label: 'Watermelon / टरबूज (Citrullus lanatus)' },
 ];
 
 export const CropHealthPage: React.FC = () => {
@@ -146,9 +146,13 @@ export const CropHealthPage: React.FC = () => {
     }
   }
 
-  async function handleDiagnose() {
+  async function handleDiagnose(overrideCrop?: string) {
     try {
       setAnalyzing(true);
+      const cropToUse = overrideCrop || selectedCrop;
+      if (overrideCrop) {
+        setSelectedCrop(overrideCrop);
+      }
 
       // If no image uploaded yet, default to first demo sample (Soybean Rust)
       const base64ToSend = imagePreview || DEMO_SAMPLES[0].dataUrl;
@@ -163,7 +167,7 @@ export const CropHealthPage: React.FC = () => {
         farmId: demoFarmId,
         imageFileName: fileNameToSend,
         imageBase64: base64ToSend,
-        crop: selectedCrop
+        crop: cropToUse
       });
 
       setDiagnosis(result);
@@ -444,7 +448,7 @@ export const CropHealthPage: React.FC = () => {
             <button
               className="btn-primary"
               style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: 700 }}
-              onClick={handleDiagnose}
+              onClick={() => handleDiagnose()}
               disabled={analyzing}
             >
               {analyzing ? (
@@ -530,7 +534,7 @@ export const CropHealthPage: React.FC = () => {
               </div>
 
               {/* Confidence Meter Bar */}
-              <div style={{ marginBottom: '24px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div
                     style={{
@@ -541,6 +545,58 @@ export const CropHealthPage: React.FC = () => {
                       transition: 'width 0.8s ease'
                     }}
                   />
+                </div>
+              </div>
+
+              {/* Quick Crop Disambiguation Switcher */}
+              <div
+                style={{
+                  marginBottom: '22px',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={14} color="#10b981" />
+                  <span>Not your crop? Switch & re-run:</span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'Maize', label: '🌽 Maize / मका' },
+                    { key: 'Rice', label: '🌾 Rice / भात' },
+                    { key: 'Sugarcane', label: '🎋 Sugarcane / ऊस' },
+                    { key: 'Soybean', label: '🫘 Soybean / सोयाबीन' },
+                    { key: 'Cotton', label: '☁️ Cotton / कापूस' },
+                  ]
+                    .filter(c => !diagnosis.cropDetected.toLowerCase().includes(c.key.toLowerCase()))
+                    .map(c => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => handleDiagnose(c.key)}
+                        disabled={analyzing}
+                        style={{
+                          fontSize: '0.76rem',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid var(--border-subtle)',
+                          color: 'var(--text-main)',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'var(--transition-smooth)'
+                        }}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
                 </div>
               </div>
 
