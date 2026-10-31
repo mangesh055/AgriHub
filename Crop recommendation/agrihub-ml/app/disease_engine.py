@@ -1,9 +1,11 @@
+import numpy as np
 import os
 import io
 import json
 import base64
 import re
 from typing import Dict, Any, List, Optional, Tuple
+from pathlib import Path
 import torch
 from PIL import Image
 from safetensors.torch import load_file
@@ -146,7 +148,7 @@ def is_online() -> bool:
         return False
 
 def load_crop_model(folder_name: str) -> Tuple[torch.nn.Module, Dict[str, Any]]:
-    """Loads and caches ConvNeXt model and config for a given folder in HuggingFace repo."""
+    """Loads and caches ConvNeXt model and config for a given folder in HuggingFace repo or local storage."""
     global _MODEL_CACHE
     if folder_name in _MODEL_CACHE:
         return _MODEL_CACHE[folder_name]
@@ -157,32 +159,42 @@ def load_crop_model(folder_name: str) -> Tuple[torch.nn.Module, Dict[str, Any]]:
     cfg_path = None
     weights_path = None
 
-    # 1. Try local cache first (offline-friendly)
-    try:
-        cfg_path = hf_hub_download(repo_id=REPO_ID, filename=config_filename, local_files_only=True)
-        weights_path = hf_hub_download(repo_id=REPO_ID, filename=weights_filename, local_files_only=True)
-    except Exception:
-        # 2. Try online download if internet is reachable
-        if is_online():
-            try:
-                cfg_path = hf_hub_download(repo_id=REPO_ID, filename=config_filename, local_files_only=False)
-                weights_path = hf_hub_download(repo_id=REPO_ID, filename=weights_filename, local_files_only=False)
-            except Exception:
-                pass
+    # 0. Priority: Check local custom fine-tuned models directory first
+    local_dir = Path(__file__).resolve().parent.parent / "models" / folder_name
+    local_cfg = local_dir / "config.json"
+    local_weights = local_dir / "model.safetensors"
+    if local_cfg.exists() and local_weights.exists():
+        cfg_path = str(local_cfg)
+        weights_path = str(local_weights)
+        print(f"[AgriHub ML] Loaded fine-tuned model from local storage: {local_dir}")
 
-        # 3. If still not loaded, fallback to a cached staple crop model (e.g. Soybean)
-        if not cfg_path or not weights_path:
-            fallback_folder = "Soybean"
-            if folder_name != fallback_folder:
-                return load_crop_model(fallback_folder)
-            raise RuntimeError(f"Cannot load model for {folder_name}")
+    # 1. Try local HuggingFace cache (offline-friendly)
+    if not cfg_path or not weights_path:
+        try:
+            cfg_path = hf_hub_download(repo_id=REPO_ID, filename=config_filename, local_files_only=True)
+            weights_path = hf_hub_download(repo_id=REPO_ID, filename=weights_filename, local_files_only=True)
+        except Exception:
+            # 2. Try online download if internet is reachable
+            if is_online():
+                try:
+                    cfg_path = hf_hub_download(repo_id=REPO_ID, filename=config_filename, local_files_only=False)
+                    weights_path = hf_hub_download(repo_id=REPO_ID, filename=weights_filename, local_files_only=False)
+                except Exception:
+                    pass
+
+            # 3. If still not loaded, fallback to a cached staple crop model (e.g. Soybean)
+            if not cfg_path or not weights_path:
+                fallback_folder = "Soybean"
+                if folder_name != fallback_folder:
+                    return load_crop_model(fallback_folder)
+                raise RuntimeError(f"Cannot load model for {folder_name}")
 
     with open(cfg_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
     state_dict = load_file(weights_path)
 
-    arch = config.get("arch", "convnext_small")
+    arch = config.get("arch") or config.get("model_architecture", "convnext_small")
     num_classes = len(config.get("classes", []))
 
     model = timm.create_model(arch, pretrained=False, num_classes=num_classes)
@@ -226,7 +238,7 @@ def preprocess_image(image_input: Any) -> torch.Tensor:
     mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
     normalized = (tensor - mean) / std
-    return normalized.unsqueeze(0)  # [1, 3, 224, 224]
+    return normalized.unsqueeze(0), img  # [1, 3, 224, 224], raw PIL image
 
 # Comprehensive CIBRC-compliant Agronomic Knowledge Base
 AGRONOMIC_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
@@ -740,29 +752,98 @@ def get_agronomic_guidance(crop_name: str, disease_raw_label: str) -> Dict[str, 
         "disclaimer": "AI agronomic detection via ConvNeXt neural leaf analysis. Always cross-verify with your local Krishi Vigyan Kendra (KVK) or Taluka Agriculture Officer before mass pesticide applications."
     }
 
+def check_plant_specimen(
+    pil_img: Image.Image,
+    img_tensor: torch.Tensor,
+    detector_model: torch.nn.Module
+) -> Tuple[bool, Optional[str], float]:
+    """
+    Dual-layer validation gate to detect Out-Of-Distribution / Non-Crop images
+    (animals, pets, humans, vehicles, furniture, or non-botanical objects).
+    """
+    arr = np.array(pil_img.convert("RGB")).astype(np.float32)
+    R, G, B = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    
+    # 1. Botanical foliage pigment analysis (Excess Green + chlorotic/necrotic foliar gamut)
+    exg = 2 * G - R - B
+    botanical_mask = (exg > 8) | ((R > 55) & (G > 45) & (G > B + 8))
+    botanical_ratio = float(np.mean(botanical_mask))
+    
+    # 2. ConvNeXt 36-Crop Detector activations
+    with torch.no_grad():
+        det_logits = detector_model(img_tensor)
+        det_probs = torch.softmax(det_logits, dim=-1)[0]
+        top_prob = float(torch.max(det_probs).item()) * 100
+        max_logit = float(torch.max(det_logits).item())
+        entropy = float(-torch.sum(det_probs * torch.log(det_probs + 1e-9)).item())
+        
+    # Validation decision
+    if botanical_ratio < 0.12:
+        return False, f"Specimen lacks agricultural vegetative pigments (foliage coverage: {botanical_ratio:.1%}).", top_prob
+    if top_prob < 40.0 and max_logit < 3.8:
+        return False, f"Visual pattern does not exhibit crop foliage features (confidence: {top_prob:.1f}%, logit: {max_logit:.2f}).", top_prob
+    if entropy > 2.05 and top_prob < 52.0:
+        return False, f"High neural distribution ambiguity (entropy: {entropy:.2f}).", top_prob
+        
+    return True, None, top_prob
+
 def diagnose_leaf(
     image_input: Any,
     crop_requested: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Main disease diagnosis pipeline using HuggingFace 'ixrbhii/multicrop-disease-models':
-    1. Preprocesses image to [1, 3, 224, 224] tensor.
-    2. Identifies crop: If 'auto' or not specified, uses 'detectors/new' ConvNeXt detector (36 crops).
-    3. Loads the specific crop's ConvNeXt model and runs inference.
-    4. Evaluates top class, confidence calibration, and differential diagnostic candidates.
-    5. Couples with CIBRC-certified agronomic guidance.
+    1. Preprocesses image to [1, 3, 224, 224] tensor and PIL image.
+    2. Validates that the specimen is an agricultural crop (rejects animals, humans, vehicles, everyday objects).
+    3. Identifies crop species if 'auto'.
+    4. Loads specific crop model and evaluates disease diagnosis.
     """
     # 1. Preprocess
-    img_tensor = preprocess_image(image_input)
+    img_tensor, pil_img = preprocess_image(image_input)
 
-    # 2. Resolve crop
+    # 2. Load 36-Crop Detector Model (serves as specimen gatekeeper and crop resolver)
+    detector_model, detector_cfg = load_crop_model("detectors/new")
+    
+    # 3. Specimen Validation Gate
+    is_plant, reject_reason, top_det_prob = check_plant_specimen(pil_img, img_tensor, detector_model)
+    if not is_plant:
+        return {
+            "is_plant": False,
+            "crop_detected": "Non-Plant / Irrelevant Specimen",
+            "crop_key": None,
+            "detector_confidence_pct": round(top_det_prob, 1),
+            "disease_name": "No Crop Foliage Detected",
+            "raw_prediction": "non_plant",
+            "is_healthy": False,
+            "confidence_pct": 0.0,
+            "status": "NON_PLANT_IMAGE",
+            "severity": "LOW",
+            "top_candidates": [],
+            "warning_title": "Non-Plant / Irrelevant Image Detected",
+            "warning_message": "The uploaded photograph does not appear to be an agricultural crop or plant leaf specimen. Our neural vision analysis detected non-crop features (e.g. animal, human, or everyday object).",
+            "guidance_tip": "Please upload a clear photograph of an actual crop leaf, stalk, or affected plant canopy so our AI agronomist can accurately diagnose plant health.",
+            "clinical_symptoms": [
+                "No characteristic leaf mesophyll, venation, or foliar tissue observed in the image",
+                "Spectral pigments and surface textures deviate from agricultural crop leaf profiles"
+            ],
+            "organic_treatments": [],
+            "chemical_controls": [],
+            "prevention_tips": [
+                "Position the camera 10–20 cm from the affected plant leaf for close-up inspection",
+                "Ensure adequate ambient natural lighting without harsh reflections or darkness",
+                "Ensure the specimen in frame is an agricultural crop (e.g. Maize, Soybean, Tomato, Rice, Sugarcane)"
+            ],
+            "disclaimer": "AI plant health diagnostic requires an agricultural botanical specimen. Upload a clear plant or leaf photograph.",
+            "model_architecture": "convnext_small",
+            "model_source": "AgriHub Specimen Verification Gate",
+        }
+
+    # 4. Resolve crop
     resolved_crop_key = get_normalized_crop_key(crop_requested)
     detected_crop_name = None
     detector_confidence = None
 
     if not resolved_crop_key:
-        # Run 36-crop detector model
-        detector_model, detector_cfg = load_crop_model("detectors/new")
         with torch.no_grad():
             det_logits = detector_model(img_tensor)
             det_probs = torch.softmax(det_logits, dim=-1)[0]

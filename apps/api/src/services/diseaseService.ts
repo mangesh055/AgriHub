@@ -115,14 +115,21 @@ export class DiseaseService {
       }
     }
 
-    // 3. Fallback / Default response if ML execution couldn't run
-    const confidencePct = mlResult?.confidence_pct ?? 91.5;
-    const isHealthy = mlResult?.is_healthy ?? false;
-    const cropDetected = mlResult?.crop_detected || (crop !== 'auto' ? crop : 'Soybean (Glycine max)');
-    const diseaseName = mlResult?.disease_name || 'Cercospora Leaf Spot / Early Blight';
-    const severity: AlertSeverity = (mlResult?.severity as AlertSeverity) || (isHealthy ? 'LOW' : 'HIGH');
-    const status: 'CONFIRMED' | 'UNCERTAIN' | 'LOW_QUALITY_IMAGE' =
-      mlResult?.status || (confidencePct >= 70 ? 'CONFIRMED' : 'UNCERTAIN');
+    // 3. Fallback / Default response with Out-Of-Distribution Specimen Gate
+    const isPlant = mlResult ? (mlResult.is_plant !== false) : true;
+    const isNonPlant = !isPlant || mlResult?.status === 'NON_PLANT_IMAGE' || mlResult?.status === 'IRRELEVANT_IMAGE';
+
+    const confidencePct = isNonPlant ? 0 : (mlResult?.confidence_pct ?? 0);
+    const isHealthy = isNonPlant ? false : (mlResult?.is_healthy ?? false);
+    const cropDetected = isNonPlant 
+      ? 'Non-Plant / Irrelevant Specimen'
+      : (mlResult?.crop_detected || (crop !== 'auto' ? crop : 'Maize / Corn / मका (Zea mays)'));
+    const diseaseName = isNonPlant 
+      ? 'No Crop Foliage Detected' 
+      : (mlResult?.disease_name || 'Specimen Analyzed');
+    const severity: AlertSeverity = isNonPlant ? 'LOW' : ((mlResult?.severity as AlertSeverity) || (isHealthy ? 'LOW' : 'HIGH'));
+    const status: 'CONFIRMED' | 'UNCERTAIN' | 'LOW_QUALITY_IMAGE' | 'NON_PLANT_IMAGE' | 'IRRELEVANT_IMAGE' =
+      isNonPlant ? 'NON_PLANT_IMAGE' : (mlResult?.status || (confidencePct >= 70 ? 'CONFIRMED' : 'UNCERTAIN'));
 
     return {
       id: randomUUID(),
@@ -135,28 +142,34 @@ export class DiseaseService {
       confidencePct,
       severity,
       status,
-      clinicalSymptoms: mlResult?.clinical_symptoms || [
+      isPlant: !isNonPlant,
+      warningTitle: mlResult?.warning_title || (isNonPlant ? 'Non-Plant / Irrelevant Image Detected' : undefined),
+      warningMessage: mlResult?.warning_message || (isNonPlant ? 'The uploaded photograph does not appear to be an agricultural crop or leaf specimen. Our neural vision analysis detected non-crop features (e.g. animal, human, or everyday object).' : undefined),
+      guidanceTip: mlResult?.guidance_tip || (isNonPlant ? 'Please upload a clear photograph of an actual crop leaf, stalk, or affected plant canopy so our AI agronomist can accurately diagnose plant health.' : undefined),
+      clinicalSymptoms: mlResult?.clinical_symptoms || (isNonPlant ? [
+        'No characteristic leaf mesophyll, venation, or foliar tissue observed in the image',
+        'Spectral pigments and surface textures deviate from agricultural crop leaf profiles'
+      ] : [
         'Concentric brown to black necrotic rings with yellow chlorotic margin on leaf lamina',
         'Stomatal conductance reduction and localized premature defoliation'
-      ],
-      organicTreatments: mlResult?.organic_treatments || [
+      ]),
+      organicTreatments: isNonPlant ? [] : (mlResult?.organic_treatments || [
         'Foliar spray of Neem Seed Kernel Extract (NSKE 5%) or 10,000 ppm cold-pressed Neem Oil @ 3ml/L',
         'Foliar bio-control spray of Trichoderma harzianum or Pseudomonas fluorescens @ 5g/L'
-      ],
-      chemicalControls: mlResult?.chemical_controls || [
-        'Carbendazim 12% + Mancozeb 63% WP (Saaf) @ 2g per liter of water',
+      ]),
+      chemicalControls: isNonPlant ? [] : (mlResult?.chemical_controls || [
         'Azoxystrobin 18.2% + Difenoconazole 11.4% SC (Amistar Top) @ 1ml per liter of water',
-        'Adhere strictly to labeled CIBRC dosage and observe a 14-day Pre-Harvest Interval (PHI)'
-      ],
+        'Mancozeb 75% WP (Indofil M-45) @ 2.5g per liter of water'
+      ]),
       preventionTips: mlResult?.prevention_tips || [
-        'Avoid excessive canopy density; maintain recommended row spacing for ventilation',
-        'Switch from overhead sprinkler to precision drip irrigation to prevent splash spore dispersal',
-        'Practice 2-year crop rotation with non-host crops (Maize or Sorghum)'
+        'Position the camera 10–20 cm from the affected plant leaf for close-up inspection',
+        'Ensure adequate ambient natural lighting without harsh reflections or darkness',
+        'Ensure the specimen in frame is an agricultural crop (e.g. Maize, Soybean, Tomato, Rice, Sugarcane)'
       ],
       disclaimer: mlResult?.disclaimer ||
-        'AI agronomic recommendation powered by HuggingFace ConvNeXt leaf analysis. Always cross-verify with your local Krishi Vigyan Kendra (KVK) or extension officer before mass chemical application.',
+        'AI plant health diagnostic requires an agricultural botanical specimen. Upload a clear plant or leaf photograph.',
       topCandidates: mlResult?.top_candidates || [],
-      modelSource: mlResult?.model_source || 'HuggingFace: ixrbhii/multicrop-disease-models',
+      modelSource: mlResult?.model_source || 'AgriHub ConvNeXt Specimen Gate',
       createdAt: new Date().toISOString()
     };
   }

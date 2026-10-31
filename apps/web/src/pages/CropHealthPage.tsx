@@ -34,7 +34,7 @@ interface DiagnosisResult {
   isHealthy: boolean;
   confidencePct: number;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  status: 'CONFIRMED' | 'UNCERTAIN' | 'LOW_QUALITY_IMAGE';
+  status: 'CONFIRMED' | 'UNCERTAIN' | 'LOW_QUALITY_IMAGE' | 'NON_PLANT_IMAGE' | 'IRRELEVANT_IMAGE';
   clinicalSymptoms: string[];
   organicTreatments: string[];
   chemicalControls: string[];
@@ -43,6 +43,10 @@ interface DiagnosisResult {
   topCandidates?: DifferentialCandidate[];
   modelSource?: string;
   createdAt: string;
+  isPlant?: boolean;
+  warningTitle?: string;
+  warningMessage?: string;
+  guidanceTip?: string;
 }
 
 const SUPPORTED_CROPS = [
@@ -206,6 +210,13 @@ export const CropHealthPage: React.FC = () => {
       return (
         <span style={{ fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '4px 10px', borderRadius: '12px', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.3)' }}>
           ● CONFIRMED DIAGNOSIS
+        </span>
+      );
+    }
+    if (status === 'NON_PLANT_IMAGE' || status === 'IRRELEVANT_IMAGE') {
+      return (
+        <span style={{ fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '4px 10px', borderRadius: '12px', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+          ⚠️ NON-PLANT SPECIMEN
         </span>
       );
     }
@@ -483,6 +494,130 @@ export const CropHealthPage: React.FC = () => {
         {/* RIGHT COLUMN: Diagnostic Results & Prescriptions */}
         <div>
           {diagnosis ? (
+            diagnosis.isPlant === false || diagnosis.status === 'NON_PLANT_IMAGE' || diagnosis.status === 'IRRELEVANT_IMAGE' || diagnosis.cropDetected.toLowerCase().includes('non-plant') ? (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: '32px',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)'
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '20px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    <AlertTriangle size={26} color="#ef4444" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '4px 10px', borderRadius: '12px', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                        ⚠️ SPECIMEN REJECTED
+                      </span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Neural Specimen Gatekeeper
+                      </span>
+                    </div>
+                    <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#f87171', lineHeight: 1.2 }}>
+                      {diagnosis.warningTitle || 'Non-Plant / Irrelevant Image Detected'}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Explanation Box */}
+                <div
+                  style={{
+                    padding: '18px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    marginBottom: '24px',
+                    lineHeight: '1.6',
+                    fontSize: '0.92rem'
+                  }}
+                >
+                  <p style={{ margin: 0, color: 'var(--text-main)' }}>
+                    {diagnosis.warningMessage || 'The uploaded photograph does not appear to be an agricultural crop or leaf specimen. Our neural vision analysis detected non-crop features (e.g. animal, human, or everyday object).'}
+                  </p>
+                  <p style={{ margin: '12px 0 0', color: '#10b981', fontWeight: 600 }}>
+                    🌱 {diagnosis.guidanceTip || 'Please upload a clear photograph of an actual crop leaf, stalk, or affected plant canopy so our AI agronomist can accurately diagnose plant health.'}
+                  </p>
+                </div>
+
+                {/* Helpful Photography Tips for Farmers */}
+                <div style={{ marginBottom: '24px' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Info size={16} color="#38bdf8" />
+                    <span>How to Capture Specimen for 100% Accurate AI Diagnosis:</span>
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                    <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#38bdf8', marginBottom: '4px' }}>
+                        🍃 Focus on Affected Leaf
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                        Center the infected leaf blade or spot within 10–20 cm distance.
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#fbbf24', marginBottom: '4px' }}>
+                        ☀️ Natural Daytime Lighting
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                        Shoot in soft daylight. Avoid strong camera flash glare or pitch darkness.
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#f43f5e', marginBottom: '4px' }}>
+                        🚫 Agricultural Flora Only
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                        Do not upload pets, humans, machinery, vehicles, or room interiors.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ padding: '10px 20px', fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <UploadCloud size={16} />
+                    <span>Upload Valid Plant Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectDemo(DEMO_SAMPLES[0])}
+                    style={{
+                      padding: '10px 18px',
+                      fontSize: '0.88rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    Try Demo Specimen
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div
               className="glass-panel"
               style={{
@@ -702,6 +837,7 @@ export const CropHealthPage: React.FC = () => {
                 {diagnosis.disclaimer}
               </p>
             </div>
+            )
           ) : (
             <div className="glass-panel" style={{ padding: '70px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <ScanLine size={52} color="#10b981" style={{ margin: '0 auto 16px', opacity: 0.6 }} />

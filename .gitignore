@@ -55,3 +55,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ML Model Weights (>100MB GitHub limit)
+*.safetensors
+*.zip

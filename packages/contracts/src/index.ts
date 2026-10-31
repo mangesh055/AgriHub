@@ -365,13 +365,17 @@ export const DiseaseDetectionResultSchema = z.object({
   isHealthy: z.boolean(),
   confidencePct: z.number().min(0).max(100),
   severity: AlertSeverityEnum,
-  status: z.enum(['CONFIRMED', 'UNCERTAIN', 'LOW_QUALITY_IMAGE']),
+  status: z.enum(['CONFIRMED', 'UNCERTAIN', 'LOW_QUALITY_IMAGE', 'IRRELEVANT_IMAGE', 'NON_PLANT_IMAGE']),
   clinicalSymptoms: z.array(z.string()),
   organicTreatments: z.array(z.string()),
   chemicalControls: z.array(z.string()),
   preventionTips: z.array(z.string()),
   disclaimer: z.string(),
-  createdAt: z.string().datetime()
+  createdAt: z.string().datetime(),
+  isPlant: z.boolean().optional(),
+  warningTitle: z.string().optional(),
+  warningMessage: z.string().optional(),
+  guidanceTip: z.string().optional()
 });
 export type DiseaseDetectionResult = z.infer<typeof DiseaseDetectionResultSchema>;
 
